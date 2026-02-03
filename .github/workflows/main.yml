@@ -15,7 +15,7 @@ on:
 env:
   REGISTRY: ghcr.io
   # TODO Update it to your project name
-  IMAGE_NAME: ghcr.io/genomicdatainfrastructure/oss-project-template
+  IMAGE_NAME: ghcr.io/genomicdatainfrastructure/keycloak-ga4gh-visa-issuer
  
 jobs:
   ort:

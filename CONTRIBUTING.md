@@ -37,7 +37,7 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 ## Code of Conduct
 
 This project and everyone participating in it is governed by the
-[GDI User Portal Front-end Code of Conduct](https://github.com/GenomicDataInfrastructure/oss-project-template/blob/master/CODE_OF_CONDUCT.md).
+[GDI User Portal Front-end Code of Conduct](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/blob/master/CODE_OF_CONDUCT.md).
 By participating, you are expected to uphold this code. Please report unacceptable behavior
 to <>.
 
@@ -45,11 +45,11 @@ to <>.
 
 > If you want to ask a question, we assume that you have read the available [Documentation](https://genomicdatainfrastructure.github.io/gdi-userportal-docs/).
 
-Before you ask a question, it is best to search for existing [Issues](https://github.com/GenomicDataInfrastructure/oss-project-template/issues) that might help you. In case you have found a suitable issue and still need clarification, you can write your question in this issue. It is also advisable to search the internet for answers first.
+Before you ask a question, it is best to search for existing [Issues](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/issues) that might help you. In case you have found a suitable issue and still need clarification, you can write your question in this issue. It is also advisable to search the internet for answers first.
 
 If you then still feel the need to ask a question and need clarification, we recommend the following:
 
-- Open an [Issue](https://github.com/GenomicDataInfrastructure/oss-project-template/issues/new).
+- Open an [Issue](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/issues/new).
 - Provide as much context as you can about what you're running into.
 - Provide project and platform versions (nodejs, npm, etc), depending on what seems relevant.
 
@@ -86,7 +86,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 
 - Make sure that you are using the latest version.
 - Determine if your bug is really a bug and not an error on your side e.g. using incompatible environment components/versions (Make sure that you have read the [documentation](https://genomicdatainfrastructure.github.io/gdi-userportal-docs/). If you are looking for support, you might want to check [this section](#i-have-a-question)).
-- To see if other users have experienced (and potentially already solved) the same issue you are having, check if there is not already a bug report existing for your bug or error in the [bug tracker](https://github.com/GenomicDataInfrastructure/oss-project-template/labels/bug)
+- To see if other users have experienced (and potentially already solved) the same issue you are having, check if there is not already a bug report existing for your bug or error in the [bug tracker](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/labels/bug)
 - Also make sure to search the internet (including Stack Overflow) to see if users outside of the GitHub community have discussed the issue.
 - Collect information about the bug:
   - Stack trace (Traceback)
@@ -105,7 +105,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
 
-- Open an [Issue](https://github.com/GenomicDataInfrastructure/oss-project-template/issues/new). (Since we can't be sure at this point whether it is a bug or not, we ask you not to talk about a bug yet and not to label the issue.)
+- Open an [Issue](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/issues/new). (Since we can't be sure at this point whether it is a bug or not, we ask you not to talk about a bug yet and not to label the issue.)
 - Explain the behavior you would expect and the actual behavior.
 - Please provide as much context as possible and describe the _reproduction steps_ that someone else can follow to recreate the issue on their own. This usually includes your code. For good bug reports you should isolate the problem and create a reduced test case.
 - Provide the information you collected in the previous section.
@@ -128,14 +128,14 @@ This section guides you through submitting an enhancement suggestion for GDI Use
 
 - Make sure that you are using the latest version.
 - Read the [documentation](https://TODO/) carefully and find out if the functionality is already covered, maybe by an individual configuration.
-- Perform a [search](https://github.com/GenomicDataInfrastructure/oss-project-template/issues) to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
+- Perform a [search](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/issues) to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
 - Find out whether your idea fits with the scope and aims of the project. It's up to you to make a strong case to convince the project's developers of the merits of this feature. Keep in mind that we want features that will be useful to the majority of our users and not just a small subset. If you're just targeting a minority of users, consider writing an add-on/plugin library.
 
 <!-- omit in toc -->
 
 #### How Do I Submit a Good Enhancement Suggestion?
 
-Enhancement suggestions are tracked as [GitHub issues](https://github.com/GenomicDataInfrastructure/oss-project-template/issues).
+Enhancement suggestions are tracked as [GitHub issues](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/issues).
 
 - Use a **clear and descriptive title** for the issue to identify the suggestion.
 - Provide a **step-by-step description of the suggested enhancement** in as many details as possible.
@@ -147,29 +147,64 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Genomi
 
 ### Your First Code Contribution
 
-<!-- TODO
-include Setup of env, IDE and typical getting started instructions?
+To get started with contributing to this project, follow these steps:
 
--->
+1.  **Fork the repository** on GitHub.
+2.  **Clone your fork** locally:
+    ```bash
+    git clone https://github.com/YOUR-USERNAME/keycloak-ga4gh-visa-issuer.git
+    cd keycloak-ga4gh-visa-issuer
+    ```
+3.  **Create a new branch** for your feature or bug fix:
+    ```bash
+    git checkout -b my-new-feature
+    ```
+4.  **Make your changes**.
+5.  **Build the Docker image** to verify your changes locally:
+    ```bash
+    docker build -t keycloak-ga4gh-visa-issuer .
+    ```
+6.  **Run the Docker container**:
+    ```bash
+    docker run -d -p 8080:80 keycloak-ga4gh-visa-issuer
+    ```
+    Access the application at `http://localhost:8080`.
 
 ### Improving The Documentation
 
-<!-- TODO
-Updating, improving and correcting the documentation
+Documentation is treated just like code. We welcome improvements to the documentation!
 
--->
+-   **Small changes**: You can edit the files directly on GitHub.
+-   **Larger changes**: Please fork the repository, make changes locally, and submit a Pull Request.
+-   Ensure that you preview your changes to verify the Markdown formatting.
 
 ## Styleguides
 
 ### Commit Messages
 
-<!-- TODO
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification. Please ensure your commit messages follow this format:
 
--->
+```
+<type>[optional scope]: <description>
 
-## Join The Project Team
+[optional body]
 
-<!-- TODO -->
+[optional footer(s)]
+```
+
+Common types include:
+-   `feat`: A new feature
+-   `fix`: A bug fix
+-   `docs`: Documentation only changes
+-   `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+-   `refactor`: A code change that neither fixes a bug nor adds a feature
+-   `perf`: A code change that improves performance
+-   `test`: Adding missing tests or correcting existing tests
+-   `chore`: Changes to the build process or auxiliary tools and libraries such as documentation generation
+
+### Join The Project Team
+
+If you are interested in becoming a regular contributor or maintainer, please reach out to us via [GitHub Discussions](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/discussions) or contact the current maintainers directly.
 
 <!-- omit in toc -->
 
