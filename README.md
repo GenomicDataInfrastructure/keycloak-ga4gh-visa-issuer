@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2024 PNED G.I.E.
+SPDX-FileCopyrightText: 2026 PNED G.I.E.
 
 SPDX-License-Identifier: CC-BY-4.0
 -->
@@ -18,7 +18,8 @@ This is a Keycloak Ga4GH Visa Issuer. It suggests an initial setup for a success
 
 ## Software Development Guidelines
 
-- We encourage the use of docker image to ship the code - GitHub offers free storage for open source projects.
+- We use Maven to build the Java project and Docker to package it.
+- GitHub offers free storage for open source projects.
 - Testing is fundamental for stable and secure code.
 - Follow free and Open Source Software principles:
     - Keep `CHANGELOG.md`, `README.md`, and `CONTRIBUTING.md` up to date.
@@ -44,7 +45,22 @@ In this template, you will find jobs for [ORT](https://oss-review-toolkit.org/or
 
 ## Installation
 
-![template](./select_repo_template.png)
+### Build and Run locally
+
+```bash
+# Build with Maven
+mvn clean package
+
+# Build and run with Docker
+docker build -t keycloak-ga4gh-visa-issuer .
+docker run -p 8080:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin keycloak-ga4gh-visa-issuer
+
+# Run with Docker Compose
+docker compose up --build
+```
+
+Access Keycloak at `http://localhost:8080`.
+The plugin will be available at `/realms/{realm}/ga4gh-visa-issuer/user/{user_identifier}`.
 
 ## Usage
 

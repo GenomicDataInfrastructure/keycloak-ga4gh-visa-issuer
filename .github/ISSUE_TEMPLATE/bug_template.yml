@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 PNED G.I.E.
+# SPDX-FileCopyrightText: 2026 PNED G.I.E.
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -18,7 +18,7 @@ body:
 
         **Quick Links for Your Reference**
         - [📜 Code of Conduct](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)
-        - [👥 Contribution Guide](https://github.com/GenomicDataInfrastructure/gdi-userportal-frontend/graphs/contributors)
+        - [👥 Contribution Guide](https://github.com/GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer/graphs/contributors)
 
   - type: checkboxes
     id: duplicates
