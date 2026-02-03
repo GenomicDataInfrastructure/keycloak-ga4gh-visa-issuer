@@ -23,7 +23,7 @@ jobs:
       - name: run sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn sonar:sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.coverage.jacoco.xmlReportPaths=./target/jacoco-report/jacoco.xml -Dsonar.organization=genomicdatainfrastructure -Dsonar.projectKey=GenomicDataInfrastructure_keycloak-ga4gh-visa-issuer
+        run: mvn sonar:sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml -Dsonar.organization=genomicdatainfrastructure -Dsonar.projectKey=GenomicDataInfrastructure_keycloak-ga4gh-visa-issuer
   reuse:
     runs-on: ubuntu-latest
     permissions:
