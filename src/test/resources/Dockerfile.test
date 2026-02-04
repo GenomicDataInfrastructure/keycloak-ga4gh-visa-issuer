@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 PNED G.I.E.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# Runtime stage
+# No build stage - we use the JAR built by the host Maven
+FROM quay.io/keycloak/keycloak:26.5.2
+
+# Copy the pre-built JAR from the host's target/ directory
+# The context must be the project root
+COPY target/keycloak-ga4gh-visa-issuer-*.jar /opt/keycloak/providers/
+
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+CMD ["start-dev"]
