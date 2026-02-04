@@ -45,35 +45,41 @@ In this template, you will find jobs for [ORT](https://oss-review-toolkit.org/or
 
 ## Installation
 
-### Build and Run locally
+### Configuration
+
+The Visa Issuer uses the `elixir_id` user attribute to look up users and issue visas. Ensure your Keycloak users have this attribute set.
+
+### API Endpoints
+
+- **Get JWK**: `GET /realms/{realm}/ga4gh-visa-issuer/api/jwk`
+  - Returns the JSON Web Keys used for signing the visas.
+- **Get Permissions**: `GET /realms/{realm}/ga4gh-visa-issuer/api/permissions/{user_elixir_id}`
+  - Returns the GA4GH Passport with visas for the user identified by their `elixir_id`.
+  - Returns `404 Not Found` if the user does not exist.
+  - Returns `409 Conflict` if multiple users are found with the same `elixir_id`.
+  - Returns `500 Internal Server Error` if there is a server-side error (e.g. visa signing failure).
+
+### Development (Docker Compose)
+
+The development setup includes pre-configured users and realms.
 
 ```bash
-# Build with Maven
-mvn clean package
-
-# Build and run with Docker
-docker build -t keycloak-ga4gh-visa-issuer .
-docker run -p 8080:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin keycloak-ga4gh-visa-issuer
-
-# Run with Docker Compose
 docker compose up --build
 ```
 
-Access Keycloak at `http://localhost:8080`.
-The plugin will be available at `/realms/{realm}/ga4gh-visa-issuer/user/{user_identifier}`.
+- Keycloak: `http://localhost:8080`
+- Admin credentials: `admin` / `admin`
+- Realm: `gdi` (automatically imported)
 
-## Usage
+### Production Build
 
-You will need to review the existing files, after you innitialised you project with this template.
+To build the production-ready Docker image:
 
-- Search for TODO and replace dummy content by the correct value (e.g. links and repository names).
-- Replace all references of `GenomicDataInfrastructure/keycloak-ga4gh-visa-issuer` by your project repository.
-- Keep `CHANGELOG.md` up to date, to reflect your deliveries.
-- Update `CONTRIBUTING.md` to your project's needs, there are sessions to be fulfilled or simply removed.
-- Update `README.md` to reflect your projects needs.
-- Replace and add missing licenses accordingly.
-- Review projects `README.md` badges.
-- Register your open project in, if you want to get a `REUSE compliant` badge.
+```bash
+docker build -t keycloak-ga4gh-visa-issuer .
+```
+
+The production image is optimized and does not include development tools or credentials. You must provide your own configuration (DB, admin user, etc.) at runtime.
 
 ## Licenses
 
@@ -81,12 +87,3 @@ This work is licensed under multiple licences:
 - All original source code is licensed under [Apache-2.0](./LICENSES/Apache-2.0.txt).
 - All documentation and images are licensed under [CC-BY-4.0](./LICENSES/CC-BY-4.0.txt).
 - For more accurate information, check the individual files.
-
-## References
-- https://fossid.com/blog/19-guidelines-for-free-and-open-source-software-usage/
-- https://reuse.software/
-- https://oss-review-toolkit.org/ort/
-- https://www.sonarsource.com/products/sonarcloud/
-- https://www.bestpractices.dev/en
-- https://trivy.dev/
-- https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-docker-registry

@@ -490,7 +490,12 @@
         "default-roles-gdi"
       ],
       "notBefore": 0,
-      "groups": []
+      "groups": [],
+      "attributes": {
+        "elixir_id": [
+          "dummy"
+        ]
+      }
     }
   ],
   "scopeMappings": [

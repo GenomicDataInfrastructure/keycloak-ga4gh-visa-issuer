@@ -115,4 +115,26 @@ class VisaResourceTest {
         Response response = visaResource.getUserPermissions(elixirId);
         assertEquals(404, response.getStatus());
     }
+
+    @Test
+    void testGetUserPermissions_MultipleUsersFound() {
+        String elixirId = "ambiguous-user";
+        when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
+                .thenReturn(Stream.of(user, user));
+
+        Response response = visaResource.getUserPermissions(elixirId);
+        assertEquals(409, response.getStatus());
+    }
+
+    @Test
+    void testGetUserPermissions_InternalServerError() {
+        String elixirId = "error-user";
+        when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
+                .thenReturn(Stream.of(user));
+        when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256))
+                .thenThrow(new RuntimeException("Signing failed"));
+
+        Response response = visaResource.getUserPermissions(elixirId);
+        assertEquals(500, response.getStatus());
+    }
 }
