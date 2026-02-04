@@ -117,7 +117,7 @@ public class VisaResource {
 
             // Construct Issuer URL manually as getRealmUrl() might be missing in
             // KeycloakUriInfo
-            String issuer = session.getContext().getUri().getBaseUri().toString() + "realms/"
+            String issuer = session.getContext().getUri().getBaseUri().toString() + "/realms/"
                     + session.getContext().getRealm().getName();
             visa.issuer(issuer);
 
