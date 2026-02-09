@@ -18,6 +18,9 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.KeyManager;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.RoleModel;
+import java.util.Base64;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -47,6 +50,12 @@ class VisaResourceTest {
     private UserModel user;
     @Mock
     private KeyManager keyManager;
+    @Mock
+    private ClientModel client;
+    @Mock
+    private UserModel serviceAccountUser;
+    @Mock
+    private RoleModel role;
 
     private VisaResource visaResource;
 
@@ -69,7 +78,19 @@ class VisaResourceTest {
     void testGetJwk() {
         when(keyManager.getKeysStream(realm)).thenReturn(Stream.empty());
 
-        Response response = visaResource.getJwk();
+        // Mock Auth
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(true);
+
+        Response response = visaResource.getJwk(authHeader);
         assertEquals(200, response.getStatus());
         assertTrue(response.getEntity() instanceof java.util.Map);
     }
@@ -80,6 +101,18 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
         when(user.getUsername()).thenReturn("researcher");
+
+        // Mock Auth
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(true);
 
         // Mock Key
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
@@ -93,7 +126,7 @@ class VisaResourceTest {
 
         when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256)).thenReturn(keyWrapper);
 
-        Response response = visaResource.getUserPermissions(elixirId);
+        Response response = visaResource.getUserPermissions(authHeader, elixirId);
 
         assertEquals(200, response.getStatus());
         GetPermissionsResponse permissions = (GetPermissionsResponse) response.getEntity();
@@ -112,7 +145,19 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.empty());
 
-        Response response = visaResource.getUserPermissions(elixirId);
+        // Mock Auth
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(true);
+
+        Response response = visaResource.getUserPermissions(authHeader, elixirId);
         assertEquals(404, response.getStatus());
     }
 
@@ -122,7 +167,19 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user, user));
 
-        Response response = visaResource.getUserPermissions(elixirId);
+        // Mock Auth
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(true);
+
+        Response response = visaResource.getUserPermissions(authHeader, elixirId);
         assertEquals(409, response.getStatus());
     }
 
@@ -134,7 +191,19 @@ class VisaResourceTest {
         when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256))
                 .thenThrow(new RuntimeException("Signing failed"));
 
-        Response response = visaResource.getUserPermissions(elixirId);
+        // Mock Auth
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(true);
+
+        Response response = visaResource.getUserPermissions(authHeader, elixirId);
         assertEquals(500, response.getStatus());
     }
 }

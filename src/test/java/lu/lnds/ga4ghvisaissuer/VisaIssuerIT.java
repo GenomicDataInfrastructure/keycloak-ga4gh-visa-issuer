@@ -61,11 +61,14 @@ public class VisaIssuerIT {
     @Test
     void testVisaIssuance() throws Exception {
         // 1. Fetch JWK
-        // The JWK endpoint provided by the plugin:
         // /realms/{realm}/ga4gh-visa-issuer/api/jwk
-        // Or standard Keycloak certs: /realms/{realm}/protocol/openid-connect/certs
-        // The user asked to fetch from /api/jwk
+
+        String authHeader = "Basic " + Base64.getEncoder()
+                .encodeToString("ls-aai-service-account:aud6cgfQh5Dlqmz4eUMsa95DnSbof5wH"
+                        .getBytes());
+
         Map<String, List<Map<String, Object>>> jwkSet = given()
+                .header("Authorization", authHeader)
                 .get("/realms/gdi/ga4gh-visa-issuer/api/jwk")
                 .then()
                 .statusCode(200)
@@ -76,6 +79,7 @@ public class VisaIssuerIT {
 
         // 2. Get Visas for dummy user
         String permissionsResponse = given()
+                .header("Authorization", authHeader)
                 .get("/realms/gdi/ga4gh-visa-issuer/api/permissions/dummy")
                 .then()
                 .statusCode(200)
