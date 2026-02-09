@@ -13,11 +13,17 @@ import org.keycloak.crypto.SignatureSignerContext;
 import org.keycloak.jose.jwk.JWK;
 import org.keycloak.jose.jwk.JWKBuilder;
 import org.keycloak.jose.jws.JWSBuilder;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.representations.JsonWebToken;
 
+import io.quarkus.security.ForbiddenException;
+import io.quarkus.security.UnauthorizedException;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -26,6 +32,7 @@ import jakarta.ws.rs.core.Response;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +40,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class VisaResource {
+
+    private static final String REQUIRED_ROLE = "ga4gh-visa-issuer";
 
     private final KeycloakSession session;
 
@@ -43,7 +52,15 @@ public class VisaResource {
     @GET
     @Path("/api/jwk")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getJwk() {
+    public Response getJwk(@HeaderParam("Authorization") String authorizationHeader) {
+        try {
+            validateClient(authorizationHeader);
+        } catch (UnauthorizedException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
+        } catch (ForbiddenException e) {
+            return Response.status(Response.Status.FORBIDDEN).entity(e.getMessage()).build();
+        }
+
         List<JWK> jwks = session.keys().getKeysStream(session.getContext().getRealm())
                 .filter(k -> k.getStatus().isEnabled() && k.getPublicKey() != null)
                 .map(k -> {
@@ -61,7 +78,17 @@ public class VisaResource {
     @GET
     @Path("/api/permissions/{user}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getUserPermissions(@PathParam("user") String userIdentifier) {
+    public Response getUserPermissions(
+            @HeaderParam("Authorization") String authorizationHeader,
+            @PathParam("user") String userIdentifier) {
+        try {
+            validateClient(authorizationHeader);
+        } catch (UnauthorizedException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
+        } catch (ForbiddenException e) {
+            return Response.status(Response.Status.FORBIDDEN).entity(e.getMessage()).build();
+        }
+
         List<UserModel> users = session.users()
                 .searchForUserByUserAttributeStream(
                         session.getContext().getRealm(),
@@ -149,6 +176,53 @@ public class VisaResource {
                     .sign(signer);
         } catch (Exception e) {
             throw new RuntimeException("Failed to sign visa", e);
+        }
+    }
+
+    private void validateClient(String authorizationHeader) throws UnauthorizedException {
+        RealmModel realm = session.getContext().getRealm();
+
+        String[] parts = authorizationHeader.split(" ");
+        if (parts.length != 2 || !parts[0].equalsIgnoreCase("Basic")) {
+            throw new UnauthorizedException("Invalid authorization header");
+        }
+
+        String base64Credentials = parts[1];
+        String decodedCredentials = new String(Base64.getDecoder().decode(base64Credentials));
+        String[] credentials = decodedCredentials.split(":");
+        if (credentials.length != 2) {
+            throw new UnauthorizedException("Invalid authorization header");
+        }
+
+        String clientId = credentials[0];
+        String providedSecret = credentials[1];
+
+        // 1. Look up the client by its ID
+        ClientModel client = realm.getClientByClientId(clientId);
+
+        if (client == null) {
+            throw new UnauthorizedException("Client not found");
+        }
+
+        // 2. Get the built-in secret from the client
+        String actualSecret = client.getSecret();
+
+        // 3. Validate
+        if (actualSecret == null || !actualSecret.equals(providedSecret)) {
+            throw new UnauthorizedException("Invalid client secret");
+        }
+
+        UserModel serviceAccountUser = session.users().getServiceAccount(client);
+
+        if (serviceAccountUser == null) {
+            throw new UnauthorizedException("Service Account not enabled for this client.");
+        }
+
+        RoleModel requiredRole = realm.getRole(REQUIRED_ROLE);
+
+        // 4. Check if the client actually has this role
+        if (requiredRole == null || !serviceAccountUser.hasRole(requiredRole)) {
+            throw new ForbiddenException("Client lacks the '" + REQUIRED_ROLE + "' role.");
         }
     }
 }
