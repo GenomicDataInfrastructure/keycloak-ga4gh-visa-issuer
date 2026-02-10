@@ -20,8 +20,6 @@ import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.representations.JsonWebToken;
 
-import io.quarkus.security.ForbiddenException;
-import io.quarkus.security.UnauthorizedException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
@@ -29,6 +27,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import lombok.extern.java.Log;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,8 +36,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+@Log
 public class VisaResource {
 
     private static final String REQUIRED_ROLE = "ga4gh-visa-issuer";
@@ -53,26 +54,21 @@ public class VisaResource {
     @Path("/api/jwk")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getJwk(@HeaderParam("Authorization") String authorizationHeader) {
-        try {
-            validateClient(authorizationHeader);
-        } catch (UnauthorizedException e) {
-            return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
-        } catch (ForbiddenException e) {
-            return Response.status(Response.Status.FORBIDDEN).entity(e.getMessage()).build();
+        Response response = validateClient(authorizationHeader);
+        if (response != null) {
+            return response;
         }
 
         List<JWK> jwks = session.keys().getKeysStream(session.getContext().getRealm())
-                .filter(k -> k.getStatus().isEnabled() && k.getPublicKey() != null)
+                .filter(k -> k.getStatus() != null && k.getStatus().isEnabled() && k.getPublicKey()
+                        != null)
                 .map(k -> {
                     return JWKBuilder.create().kid(k.getKid()).algorithm(k.getAlgorithmOrDefault())
                             .rsa(k.getPublicKey());
                 })
                 .collect(Collectors.toList());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("keys", jwks);
-
-        return Response.ok(response).build();
+        return Response.ok(Map.of("keys", jwks)).build();
     }
 
     @GET
@@ -81,12 +77,9 @@ public class VisaResource {
     public Response getUserPermissions(
             @HeaderParam("Authorization") String authorizationHeader,
             @PathParam("user") String userIdentifier) {
-        try {
-            validateClient(authorizationHeader);
-        } catch (UnauthorizedException e) {
-            return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
-        } catch (ForbiddenException e) {
-            return Response.status(Response.Status.FORBIDDEN).entity(e.getMessage()).build();
+        Response response = validateClient(authorizationHeader);
+        if (response != null) {
+            return response;
         }
 
         List<UserModel> users = session.users()
@@ -123,85 +116,95 @@ public class VisaResource {
                     "https://doi.org/10.1038/s41431-018-0219-y",
                     "self"));
         } catch (Exception e) {
+            log.log(Level.INFO, "Failed to sign visa: " + e.getMessage(), e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity(e.getMessage())
                     .build();
         }
 
-        GetPermissionsResponse response = GetPermissionsResponse.builder()
+        return Response.ok(GetPermissionsResponse.builder()
                 .ga4ghPassportV1(passports)
+                .build())
                 .build();
-
-        return Response.ok(response).build();
     }
 
     private String signedVisaAsString(String username, String type, String value, String by) {
-        try {
-            // Construct Claims
-            long now = Instant.now().getEpochSecond();
-            JsonWebToken visa = new JsonWebToken();
-            visa.id(UUID.randomUUID().toString());
+        // Construct Claims
+        long now = Instant.now().getEpochSecond();
+        JsonWebToken visa = new JsonWebToken();
+        visa.id(UUID.randomUUID().toString());
 
-            // Construct Issuer URL manually as getRealmUrl() might be missing in
-            // KeycloakUriInfo
-            String issuer = session.getContext().getUri().getBaseUri().toString() + "/realms/"
-                    + session.getContext().getRealm().getName();
-            visa.issuer(issuer);
+        // Construct Issuer URL manually as getRealmUrl() might be missing in
+        // KeycloakUriInfo
+        String issuer = session.getContext().getUri().getBaseUri().toString() + "/realms/"
+                + session.getContext().getRealm().getName();
+        visa.issuer(issuer);
 
-            visa.subject(username);
-            visa.iat(now);
-            visa.exp(now + 3600); // 1 hour expiration
+        visa.subject(username);
+        visa.iat(now);
+        visa.exp(now + 3600); // 1 hour expiration
 
-            // GA4GH Visa Claims
-            Map<String, Object> ga4ghClaims = new HashMap<>();
-            ga4ghClaims.put("type", type);
-            ga4ghClaims.put("value", value);
-            ga4ghClaims.put("source", issuer);
-            ga4ghClaims.put("asserted", now);
-            ga4ghClaims.put("by", "system");
+        // GA4GH Visa Claims
+        Map<String, Object> ga4ghClaims = new HashMap<>();
+        ga4ghClaims.put("type", type);
+        ga4ghClaims.put("value", value);
+        ga4ghClaims.put("source", issuer);
+        ga4ghClaims.put("asserted", now);
+        ga4ghClaims.put("by", "system");
 
-            visa.setOtherClaims("ga4gh_visa_v1", ga4ghClaims);
+        visa.setOtherClaims("ga4gh_visa_v1", ga4ghClaims);
 
-            // Sign using active realm key
-            KeyWrapper key = session.keys().getActiveKey(session
-                    .getContext().getRealm(),
-                    KeyUse.SIG,
-                    Algorithm.RS256);
+        // Sign using active realm key
+        KeyWrapper key = session.keys().getActiveKey(session
+                .getContext().getRealm(),
+                KeyUse.SIG,
+                Algorithm.RS256);
 
-            // Wrap KeyWrapper into SignatureSignerContext
-            SignatureSignerContext signer = new ServerAsymmetricSignatureSignerContext(key);
-
-            return new JWSBuilder()
-                    .jsonContent(visa)
-                    .sign(signer);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to sign visa", e);
+        if (key == null) {
+            throw new RuntimeException("Active key not found for realm");
         }
+
+        // Wrap KeyWrapper into SignatureSignerContext
+        SignatureSignerContext signer = new ServerAsymmetricSignatureSignerContext(key);
+
+        return new JWSBuilder()
+                .jsonContent(visa)
+                .sign(signer);
     }
 
-    private void validateClient(String authorizationHeader) throws UnauthorizedException {
-        RealmModel realm = session.getContext().getRealm();
+    private Response validateClient(String authorizationHeader) {
+        if (authorizationHeader == null) {
+            return buildUnauthorizedError("Authorization header is missing");
+        }
 
         String[] parts = authorizationHeader.split(" ");
         if (parts.length != 2 || !parts[0].equalsIgnoreCase("Basic")) {
-            throw new UnauthorizedException("Invalid authorization header");
+            return buildUnauthorizedError("Invalid authorization header");
         }
 
         String base64Credentials = parts[1];
-        String decodedCredentials = new String(Base64.getDecoder().decode(base64Credentials));
+        String decodedCredentials;
+        try {
+            decodedCredentials = new String(Base64.getDecoder().decode(base64Credentials));
+        } catch (IllegalArgumentException e) {
+            log.log(Level.INFO, "Failed to decode authorization header: " + e.getMessage(), e);
+            return buildUnauthorizedError("Invalid authorization header");
+        }
         String[] credentials = decodedCredentials.split(":");
         if (credentials.length != 2) {
-            throw new UnauthorizedException("Invalid authorization header");
+            return buildUnauthorizedError("Invalid authorization header");
         }
 
         String clientId = credentials[0];
         String providedSecret = credentials[1];
 
+        RealmModel realm = session.getContext().getRealm();
+
         // 1. Look up the client by its ID
         ClientModel client = realm.getClientByClientId(clientId);
 
         if (client == null) {
-            throw new UnauthorizedException("Client not found");
+            return buildUnauthorizedError("Client not found");
         }
 
         // 2. Get the built-in secret from the client
@@ -209,20 +212,32 @@ public class VisaResource {
 
         // 3. Validate
         if (actualSecret == null || !actualSecret.equals(providedSecret)) {
-            throw new UnauthorizedException("Invalid client secret");
+            return buildUnauthorizedError("Invalid client secret");
         }
 
         UserModel serviceAccountUser = session.users().getServiceAccount(client);
 
         if (serviceAccountUser == null) {
-            throw new UnauthorizedException("Service Account not enabled for this client.");
+            return buildUnauthorizedError("Service Account not enabled for this client.");
         }
 
         RoleModel requiredRole = realm.getRole(REQUIRED_ROLE);
 
         // 4. Check if the client actually has this role
         if (requiredRole == null || !serviceAccountUser.hasRole(requiredRole)) {
-            throw new ForbiddenException("Client lacks the '" + REQUIRED_ROLE + "' role.");
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity("Client lacks the '" + REQUIRED_ROLE + "' role.")
+                    .build();
         }
+
+        return null;
+    }
+
+    private Response buildUnauthorizedError(String message) {
+        return Response.status(Response.Status.UNAUTHORIZED)
+                .header("WWW-Authenticate", "Basic realm=\"" + session.getContext().getRealm()
+                        .getName() + "\"")
+                .entity(message)
+                .build();
     }
 }

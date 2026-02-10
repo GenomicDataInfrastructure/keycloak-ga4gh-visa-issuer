@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
+import org.keycloak.jose.jwk.JWK;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
@@ -29,6 +30,8 @@ import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.stream.Stream;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -93,6 +96,35 @@ class VisaResourceTest {
         Response response = visaResource.getJwk(authHeader);
         assertEquals(200, response.getStatus());
         assertTrue(response.getEntity() instanceof java.util.Map);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testGetJwk_KeyStatusNull() {
+        // Mock a key with null status
+        KeyWrapper keyWithError = new KeyWrapper();
+        keyWithError.setAlgorithm(Algorithm.RS256);
+        // implicit null status
+
+        when(keyManager.getKeysStream(realm)).thenReturn(Stream.of(keyWithError));
+
+        // Mock Auth (reusing valid auth setup)
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(true);
+
+        Response response = visaResource.getJwk(authHeader);
+        assertEquals(200, response.getStatus());
+        Map<String, Object> entity = (Map<String, Object>) response.getEntity();
+        List<JWK> keys = (List<JWK>) entity.get("keys");
+        assertTrue(keys.isEmpty()); // Should be filtered out safely, not throw NPE
     }
 
     @Test
@@ -205,5 +237,127 @@ class VisaResourceTest {
 
         Response response = visaResource.getUserPermissions(authHeader, elixirId);
         assertEquals(500, response.getStatus());
+    }
+
+    @Test
+    void testGetUserPermissions_ActiveKeyNull() {
+        String elixirId = "elixir-user";
+        when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
+                .thenReturn(Stream.of(user));
+        when(user.getUsername()).thenReturn("researcher");
+
+        // Mock active key returning null
+        when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256)).thenReturn(null);
+
+        // Mock Auth
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(true);
+
+        Response response = visaResource.getUserPermissions(authHeader, elixirId);
+        // Expect 500 because we throw RuntimeException which maps to 500 in the catch
+        // block
+        assertEquals(500, response.getStatus());
+        assertEquals("Active key not found for realm", response.getEntity());
+    }
+
+    @Test
+    void testValidateClient_MissingAuthHeader() {
+        Response response = visaResource.getJwk(null);
+        assertEquals(401, response.getStatus());
+        assertEquals("Authorization header is missing", response.getEntity());
+        assertEquals("Basic realm=\"master\"", response.getHeaderString("WWW-Authenticate"));
+    }
+
+    @Test
+    void testValidateClient_InvalidAuthHeaderFormat() {
+        Response response = visaResource.getJwk("Bearer token");
+        assertEquals(401, response.getStatus());
+        assertEquals("Invalid authorization header", response.getEntity());
+        assertEquals("Basic realm=\"master\"", response.getHeaderString("WWW-Authenticate"));
+    }
+
+    @Test
+    void testValidateClient_InvalidBase64Credentials() {
+        // "invalidhash" is not valid base64 or decodes to something without ":"
+        // Let's use valid base64 that doesn't have a colon
+        String invalidCreds = Base64.getEncoder().encodeToString("nocolon".getBytes());
+        Response response = visaResource.getJwk("Basic " + invalidCreds);
+        assertEquals(401, response.getStatus());
+        assertEquals("Invalid authorization header", response.getEntity());
+        assertEquals("Basic realm=\"master\"", response.getHeaderString("WWW-Authenticate"));
+    }
+
+    @Test
+    void testValidateClient_ClientNotFound() {
+        String clientId = "unknown-client";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(null);
+
+        Response response = visaResource.getJwk(authHeader);
+        assertEquals(401, response.getStatus());
+        assertEquals("Client not found", response.getEntity());
+        assertEquals("Basic realm=\"master\"", response.getHeaderString("WWW-Authenticate"));
+    }
+
+    @Test
+    void testValidateClient_InvalidClientSecret() {
+        String clientId = "gdi";
+        String secret = "wrong-secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn("actual-secret");
+
+        Response response = visaResource.getJwk(authHeader);
+        assertEquals(401, response.getStatus());
+        assertEquals("Invalid client secret", response.getEntity());
+        assertEquals("Basic realm=\"master\"", response.getHeaderString("WWW-Authenticate"));
+    }
+
+    @Test
+    void testValidateClient_ServiceAccountNotEnabled() {
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(null);
+
+        Response response = visaResource.getJwk(authHeader);
+        assertEquals(401, response.getStatus());
+        assertEquals("Service Account not enabled for this client.", response.getEntity());
+        assertEquals("Basic realm=\"master\"", response.getHeaderString("WWW-Authenticate"));
+    }
+
+    @Test
+    void testValidateClient_ClientLacksRole() {
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(false);
+
+        Response response = visaResource.getJwk(authHeader);
+        assertEquals(403, response.getStatus());
+        assertEquals("Client lacks the 'ga4gh-visa-issuer' role.", response.getEntity());
     }
 }

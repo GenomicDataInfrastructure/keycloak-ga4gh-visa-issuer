@@ -61,7 +61,13 @@ The Visa Issuer uses the `elixir_id` user attribute to look up users and issue v
 
 ### Development (Docker Compose)
 
-The development setup includes pre-configured users and realms.
+The development setup includes pre-configured users and realms. Ensure you have Docker and Docker Compose installed with enough resources (at least 4GB of RAM).
+
+For MacOS ARM64, you can use [colima](https://github.com/abiosoft/colima) to manage your Docker environment. You can start it with:
+
+```bash
+colima start --arch aarch64 --vm-type=vz --mount-type=virtiofs --vz-rosetta --cpu 4 --memory 10
+```
 
 ```bash
 docker compose up --build
@@ -70,6 +76,24 @@ docker compose up --build
 - Keycloak: `http://localhost:8080`
 - Admin credentials: `admin` / `admin`
 - Realm: `gdi` (automatically imported)
+
+If you ever need to delete the Keycloak data, you can use the following command:
+
+```bash
+docker compose down -v
+```
+
+If you ever need to make changes to the realm or users, the safest way is changing directly in the Keycloak admin console and export the realm via CLI. Then, commit the changes to the repository.
+
+```bash
+docker compose exec keycloak /opt/keycloak/bin/kc.sh export --realm gdi --dir /opt/keycloak/data/import --users realm_file --optimized
+```
+
+If you ever need to format the files, you can use the following command:
+
+```bash
+mvn formatter:format
+```
 
 ### Production Build
 
