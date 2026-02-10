@@ -33,7 +33,7 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @Testcontainers
-public class VisaIssuerIT {
+class VisaIssuerIT {
 
     @Container
     @SuppressWarnings("resource")
