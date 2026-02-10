@@ -62,11 +62,9 @@ public class VisaResource {
         List<JWK> jwks = session.keys().getKeysStream(session.getContext().getRealm())
                 .filter(k -> k.getStatus() != null && k.getStatus().isEnabled() && k.getPublicKey()
                         != null)
-                .map(k -> {
-                    return JWKBuilder.create().kid(k.getKid()).algorithm(k.getAlgorithmOrDefault())
-                            .rsa(k.getPublicKey());
-                })
-                .collect(Collectors.toList());
+                .map(k -> JWKBuilder.create().kid(k.getKid()).algorithm(k.getAlgorithmOrDefault())
+                        .rsa(k.getPublicKey()))
+                .toList();
 
         return Response.ok(Map.of("keys", jwks)).build();
     }
@@ -87,7 +85,7 @@ public class VisaResource {
                         session.getContext().getRealm(),
                         "elixir_id",
                         userIdentifier)
-                .collect(Collectors.toList());
+                .toList();
 
         if (users.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND).entity("User not found").build();
@@ -150,7 +148,7 @@ public class VisaResource {
         ga4ghClaims.put("value", value);
         ga4ghClaims.put("source", issuer);
         ga4ghClaims.put("asserted", now);
-        ga4ghClaims.put("by", "system");
+        ga4ghClaims.put("by", by);
 
         visa.setOtherClaims("ga4gh_visa_v1", ga4ghClaims);
 
@@ -161,7 +159,7 @@ public class VisaResource {
                 Algorithm.RS256);
 
         if (key == null) {
-            throw new RuntimeException("Active key not found for realm");
+            throw new IllegalArgumentException("Active key not found for realm");
         }
 
         // Wrap KeyWrapper into SignatureSignerContext
@@ -188,11 +186,11 @@ public class VisaResource {
             decodedCredentials = new String(Base64.getDecoder().decode(base64Credentials));
         } catch (IllegalArgumentException e) {
             log.log(Level.INFO, "Failed to decode authorization header: " + e.getMessage(), e);
-            return buildUnauthorizedError("Invalid authorization header");
+            return buildUnauthorizedError("Failed to decode authorization header");
         }
         String[] credentials = decodedCredentials.split(":");
         if (credentials.length != 2) {
-            return buildUnauthorizedError("Invalid authorization header");
+            return buildUnauthorizedError("Invalid client credentials");
         }
 
         String clientId = credentials[0];

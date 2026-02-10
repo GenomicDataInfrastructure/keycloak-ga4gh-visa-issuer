@@ -291,7 +291,15 @@ class VisaResourceTest {
         String invalidCreds = Base64.getEncoder().encodeToString("nocolon".getBytes());
         Response response = visaResource.getJwk("Basic " + invalidCreds);
         assertEquals(401, response.getStatus());
-        assertEquals("Invalid authorization header", response.getEntity());
+        assertEquals("Invalid client credentials", response.getEntity());
+        assertEquals("Basic realm=\"master\"", response.getHeaderString("WWW-Authenticate"));
+    }
+
+    @Test
+    void testValidateClient_MalformedBase64() {
+        Response response = visaResource.getJwk("Basic invalidbase64!!!!");
+        assertEquals(401, response.getStatus());
+        assertEquals("Failed to decode authorization header", response.getEntity());
         assertEquals("Basic realm=\"master\"", response.getHeaderString("WWW-Authenticate"));
     }
 
