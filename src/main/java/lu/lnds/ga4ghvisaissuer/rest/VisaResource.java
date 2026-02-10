@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 @Log
 public class VisaResource {
@@ -60,8 +59,7 @@ public class VisaResource {
         }
 
         List<JWK> jwks = session.keys().getKeysStream(session.getContext().getRealm())
-                .filter(k -> k.getStatus() != null && k.getStatus().isEnabled() && k.getPublicKey()
-                        != null)
+                .filter(k -> k.getStatus() != null && k.getStatus().isEnabled() && k.getPublicKey() != null)
                 .map(k -> JWKBuilder.create().kid(k.getKid()).algorithm(k.getAlgorithmOrDefault())
                         .rsa(k.getPublicKey()))
                 .toList();
