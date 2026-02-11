@@ -133,6 +133,25 @@ class VisaIssuerIT {
         Algorithm algorithm = Algorithm.RSA256(publicKey, null);
         // throws exception if signature is invalid
         algorithm.verify(decoded);
+        algorithm.verify(decoded);
         assertNotNull(decoded.getIssuer());
+
+        // 7. Verify jku header
+        String jku = decoded.getHeaderClaim("jku").asString();
+        assertNotNull(jku, "jku header should be present");
+        // The issuer URL in the test environment (Testcontainers) might be different
+        // from localhost
+        // but we can check if it ends with the expected path
+        // In the test, Keycloak is running in a container, so issuer will be based on
+        // that.
+        // But the `jku` is constructed using
+        // `session.getContext().getUri().getBaseUri()`.
+        // We can just assert it's not null and looks like a URL for now, or check
+        // suffix.
+        if (jku != null) {
+            if (!jku.endsWith("/ga4gh-visa-issuer/api/jwk")) {
+                throw new AssertionError("jku header does not end with expected path: " + jku);
+            }
+        }
     }
 }
