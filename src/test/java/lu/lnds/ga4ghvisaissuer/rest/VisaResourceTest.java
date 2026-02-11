@@ -12,6 +12,8 @@ import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.jose.jwk.JWK;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
@@ -167,8 +169,14 @@ class VisaResourceTest {
         assertEquals(2, permissions.getGa4ghPassportV1().size());
 
         // Basic JWT verification (checking if it's a string looking like a JWT)
-        String visa = permissions.getGa4ghPassportV1().get(0);
-        assertTrue(visa.split("\\.").length == 3);
+        String visaString = permissions.getGa4ghPassportV1().get(0);
+        assertTrue(visaString.split("\\.").length == 3);
+
+        // Verify jku header
+        DecodedJWT visa = JWT.decode(visaString);
+        String jku = visa.getHeaderClaim("jku").asString();
+        assertNotNull(jku, "jku header should be present");
+        assertTrue(jku.endsWith("/realms/master/ga4gh-visa-issuer/api/jwk"));
     }
 
     @Test

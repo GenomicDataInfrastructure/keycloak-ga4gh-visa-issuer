@@ -12,7 +12,7 @@ import org.keycloak.crypto.ServerAsymmetricSignatureSignerContext;
 import org.keycloak.crypto.SignatureSignerContext;
 import org.keycloak.jose.jwk.JWK;
 import org.keycloak.jose.jwk.JWKBuilder;
-import org.keycloak.jose.jws.JWSBuilder;
+import org.keycloak.jose.jws.JWSHeader;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -125,6 +125,7 @@ public class VisaResource {
                 .build();
     }
 
+    @SuppressWarnings("deprecation")
     private String signedVisaAsString(String username, String type, String value, String by) {
         // Construct Claims
         long now = Instant.now().getEpochSecond();
@@ -164,9 +165,27 @@ public class VisaResource {
         // Wrap KeyWrapper into SignatureSignerContext
         SignatureSignerContext signer = new ServerAsymmetricSignatureSignerContext(key);
 
-        return new JWSBuilder()
-                .jsonContent(visa)
-                .sign(signer);
+        JWSHeader header = new JWSHeader(Enum.valueOf(org.keycloak.jose.jws.Algorithm.class,
+                signer.getAlgorithm()), "JWT", null);
+        header.setKeyId(signer.getKid());
+        header.setOtherClaims("jku", issuer + "/ga4gh-visa-issuer/api/jwk");
+
+        try {
+            String headerB64 = java.util.Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(org.keycloak.util.JsonSerialization.writeValueAsBytes(header));
+            String contentB64 = java.util.Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(org.keycloak.util.JsonSerialization.writeValueAsBytes(visa));
+
+            byte[] signatureData = (headerB64 + "." + contentB64).getBytes(
+                    java.nio.charset.StandardCharsets.UTF_8);
+            byte[] signature = signer.sign(signatureData);
+            String signatureB64 = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    signature);
+
+            return headerB64 + "." + contentB64 + "." + signatureB64;
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Failed to serialize JWT", e);
+        }
     }
 
     private Response validateClient(String authorizationHeader) {
