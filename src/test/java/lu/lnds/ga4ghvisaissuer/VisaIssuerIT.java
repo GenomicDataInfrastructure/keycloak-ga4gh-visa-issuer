@@ -61,15 +61,14 @@ class VisaIssuerIT {
     @Test
     void testVisaIssuance() throws Exception {
         // 1. Fetch JWK
-        // /realms/{realm}/ga4gh-visa-issuer/api/jwk
+        // /realms/{realm}/protocol/openid-connect/certs
 
         String authHeader = "Basic " + Base64.getEncoder()
                 .encodeToString("ls-aai-service-account:aud6cgfQh5Dlqmz4eUMsa95DnSbof5wH"
                         .getBytes());
 
         Map<String, List<Map<String, Object>>> jwkSet = given()
-                .header("Authorization", authHeader)
-                .get("/realms/gdi/ga4gh-visa-issuer/api/jwk")
+                .get("/realms/gdi/protocol/openid-connect/certs")
                 .then()
                 .statusCode(200)
                 .body("keys", hasSize(greaterThan(0)))
@@ -149,7 +148,7 @@ class VisaIssuerIT {
         // We can just assert it's not null and looks like a URL for now, or check
         // suffix.
         if (jku != null) {
-            if (!jku.endsWith("/ga4gh-visa-issuer/api/jwk")) {
+            if (!jku.endsWith("/protocol/openid-connect/certs")) {
                 throw new AssertionError("jku header does not end with expected path: " + jku);
             }
         }

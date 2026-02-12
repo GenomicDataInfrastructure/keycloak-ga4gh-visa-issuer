@@ -52,11 +52,7 @@ public class VisaResource {
     @GET
     @Path("/api/jwk")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getJwk(@HeaderParam("Authorization") String authorizationHeader) {
-        Response response = validateClient(authorizationHeader);
-        if (response != null) {
-            return response;
-        }
+    public Response getJwk() {
 
         List<JWK> jwks = session.keys().getKeysStream(session.getContext().getRealm())
                 .filter(k -> k.getStatus() != null && k.getStatus().isEnabled() && k.getPublicKey()
@@ -168,7 +164,7 @@ public class VisaResource {
         JWSHeader header = new JWSHeader(Enum.valueOf(org.keycloak.jose.jws.Algorithm.class,
                 signer.getAlgorithm()), "JWT", null);
         header.setKeyId(signer.getKid());
-        header.setOtherClaims("jku", issuer + "/ga4gh-visa-issuer/api/jwk");
+        header.setOtherClaims("jku", issuer + "/protocol/openid-connect/certs");
 
         try {
             String headerB64 = java.util.Base64.getUrlEncoder().withoutPadding()
