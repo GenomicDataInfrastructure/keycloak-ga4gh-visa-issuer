@@ -10,7 +10,6 @@ import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.crypto.ServerAsymmetricSignatureSignerContext;
 import org.keycloak.crypto.SignatureSignerContext;
-
 import org.keycloak.jose.jws.JWSHeader;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
