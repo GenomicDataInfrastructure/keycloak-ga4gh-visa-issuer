@@ -51,7 +51,7 @@ The Visa Issuer uses the `elixir_id` user attribute to look up users and issue v
 
 ### API Endpoints
 
-- **Get JWK**: `GET /realms/{realm}/ga4gh-visa-issuer/api/jwk`
+- **Get JWK**: `GET /realms/{realm}/protocol/openid-connect/certs`
   - Returns the JSON Web Keys used for signing the visas.
 - **Get Permissions**: `GET /realms/{realm}/ga4gh-visa-issuer/api/permissions/{user_elixir_id}`
   - Returns the GA4GH Passport with visas for the user identified by their `elixir_id`.
