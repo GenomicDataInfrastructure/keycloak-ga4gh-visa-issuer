@@ -11,7 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
-
+import org.keycloak.jose.jwk.JWK;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import org.keycloak.models.KeycloakContext;
@@ -32,6 +32,8 @@ import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.stream.Stream;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -75,6 +77,32 @@ class VisaResourceTest {
 
         lenient().when(session.users()).thenReturn(userProvider);
         lenient().when(session.keys()).thenReturn(keyManager);
+    }
+
+    @Test
+    void testGetJwk() {
+        when(keyManager.getKeysStream(realm)).thenReturn(Stream.empty());
+
+        Response response = visaResource.getJwk();
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getEntity() instanceof java.util.Map);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testGetJwk_KeyStatusNull() {
+        // Mock a key with null status
+        KeyWrapper keyWithError = new KeyWrapper();
+        keyWithError.setAlgorithm(Algorithm.RS256);
+        // implicit null status
+
+        when(keyManager.getKeysStream(realm)).thenReturn(Stream.of(keyWithError));
+
+        Response response = visaResource.getJwk();
+        assertEquals(200, response.getStatus());
+        Map<String, Object> entity = (Map<String, Object>) response.getEntity();
+        List<JWK> keys = (List<JWK>) entity.get("keys");
+        assertTrue(keys.isEmpty()); // Should be filtered out safely, not throw NPE
     }
 
     @Test

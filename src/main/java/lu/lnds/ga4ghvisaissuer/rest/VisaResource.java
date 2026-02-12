@@ -10,7 +10,8 @@ import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.crypto.ServerAsymmetricSignatureSignerContext;
 import org.keycloak.crypto.SignatureSignerContext;
-
+import org.keycloak.jose.jwk.JWK;
+import org.keycloak.jose.jwk.JWKBuilder;
 import org.keycloak.jose.jws.JWSHeader;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
@@ -46,6 +47,21 @@ public class VisaResource {
 
     public VisaResource(KeycloakSession session) {
         this.session = session;
+    }
+
+    @GET
+    @Path("/api/jwk")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getJwk() {
+
+        List<JWK> jwks = session.keys().getKeysStream(session.getContext().getRealm())
+                .filter(k -> k.getStatus() != null && k.getStatus().isEnabled() && k.getPublicKey()
+                        != null)
+                .map(k -> JWKBuilder.create().kid(k.getKid()).algorithm(k.getAlgorithmOrDefault())
+                        .rsa(k.getPublicKey()))
+                .toList();
+
+        return Response.ok(Map.of("keys", jwks)).build();
     }
 
     @GET
