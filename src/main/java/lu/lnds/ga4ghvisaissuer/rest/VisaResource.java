@@ -5,6 +5,7 @@
 package lu.lnds.ga4ghvisaissuer.rest;
 
 import lu.lnds.ga4ghvisaissuer.dto.GetPermissionsResponse;
+import lu.lnds.ga4ghvisaissuer.dto.VisaType;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
@@ -30,16 +31,52 @@ import lombok.extern.java.Log;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Log
 public class VisaResource {
 
     private static final String REQUIRED_ROLE = "ga4gh-visa-issuer";
+    private static final String DEFAULT_REALM_ROLE_PREFIX = "default-roles-";
+    private static final String OFFLINE_ACCESS_ROLE = "offline_access";
+    private static final String UMA_AUTHORIZATION_ROLE = "uma_authorization";
+
+    private static final List<String> ROLE_ATTRIBUTE_KEYS = List.of(
+            "role",
+            "roles",
+            "user_role",
+            "user_roles",
+            "researcher_status");
+
+    private static final List<String> ROLE_ASSERTED_ATTRIBUTE_KEYS = List.of(
+            "role_asserted",
+            "roles_asserted",
+            "role_assigned",
+            "role_assigned_at",
+            "researcher_status_asserted");
+
+    private static final List<String> TERMS_ATTRIBUTE_KEYS = List.of(
+            "accepted_terms_and_policies",
+            "accepted_terms_and_conditions",
+            "accepted_terms",
+            "terms_and_conditions");
+
+    private static final List<String> TERMS_ASSERTED_ATTRIBUTE_KEYS = List.of(
+            "accepted_terms_and_policies_asserted",
+            "accepted_terms_and_conditions_asserted",
+            "accepted_terms_asserted",
+            "terms_and_conditions_asserted",
+            "terms_and_conditions_accepted_at");
 
     private final KeycloakSession session;
 
@@ -75,22 +112,18 @@ public class VisaResource {
 
         UserModel user = users.get(0);
 
+        List<VisaClaim> visaClaims = collectVisaClaims(user);
         List<String> passports = new ArrayList<>();
 
         try {
-            // ResearcherStatus
-            passports.add(signedVisaAsString(
-                    user.getUsername(),
-                    "ResearcherStatus",
-                    "https://doi.org/10.1038/s41431-018-0219-y",
-                    "so"));
-
-            // AcceptedTermsAndPolicies
-            passports.add(signedVisaAsString(
-                    user.getUsername(),
-                    "AcceptedTermsAndPolicies",
-                    "https://doi.org/10.1038/s41431-018-0219-y",
-                    "self"));
+            for (VisaClaim visaClaim : visaClaims) {
+                passports.add(signedVisaAsString(
+                        user.getUsername(),
+                        visaClaim.type(),
+                        visaClaim.value(),
+                        visaClaim.by(),
+                        visaClaim.asserted()));
+            }
         } catch (Exception e) {
             log.log(Level.INFO, "Failed to sign visa: " + e.getMessage(), e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
@@ -104,8 +137,234 @@ public class VisaResource {
                 .build();
     }
 
+    private List<VisaClaim> collectVisaClaims(UserModel user) {
+        long fallbackAsserted = getFallbackAsserted(user);
+        List<VisaClaim> visaClaims = new ArrayList<>();
+        visaClaims.addAll(buildResearcherStatusVisas(user, fallbackAsserted));
+        visaClaims.addAll(buildAcceptedTermsAndPoliciesVisas(user, fallbackAsserted));
+        return visaClaims;
+    }
+
+    private List<VisaClaim> buildResearcherStatusVisas(UserModel user, long fallbackAsserted) {
+        List<String> roleValues = new ArrayList<>();
+
+        for (String key : ROLE_ATTRIBUTE_KEYS) {
+            roleValues.addAll(getNormalizedAttributeValues(user, key));
+        }
+
+        // Fallback to Keycloak role mappings when custom role attributes are not present.
+        if (roleValues.isEmpty()) {
+            String defaultRoleName = DEFAULT_REALM_ROLE_PREFIX + session.getContext().getRealm()
+                    .getName();
+            roleValues = user.getRoleMappingsStream()
+                    .map(RoleModel::getName)
+                    .filter(roleName -> !roleName.equals(defaultRoleName))
+                    .filter(roleName -> !OFFLINE_ACCESS_ROLE.equals(roleName))
+                    .filter(roleName -> !UMA_AUTHORIZATION_ROLE.equals(roleName))
+                    .distinct()
+                    .toList();
+        }
+
+        List<Long> assertedValues = getAssertedValues(user, ROLE_ASSERTED_ATTRIBUTE_KEYS);
+        List<VisaClaim> claims = new ArrayList<>();
+        Set<String> deduplicatedRoles = new LinkedHashSet<>(roleValues);
+        int index = 0;
+        for (String roleValue : deduplicatedRoles) {
+            claims.add(new VisaClaim(
+                    VisaType.ResearcherStatus.name(),
+                    roleValue,
+                    "so",
+                    getAssertedAtIndex(assertedValues, index, fallbackAsserted)));
+            index++;
+        }
+        return claims;
+    }
+
+    private List<VisaClaim> buildAcceptedTermsAndPoliciesVisas(UserModel user,
+            long fallbackAsserted) {
+        List<TermsEntry> entries = new ArrayList<>();
+
+        for (String key : TERMS_ATTRIBUTE_KEYS) {
+            entries.addAll(parseTermsEntriesFromAttributeValues(
+                    getNormalizedAttributeValues(user, key),
+                    fallbackAsserted));
+        }
+
+        if (entries.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> assertedValues = getAssertedValues(user, TERMS_ASSERTED_ATTRIBUTE_KEYS);
+        List<VisaClaim> claims = new ArrayList<>();
+        for (int i = 0; i < entries.size(); i++) {
+            TermsEntry entry = entries.get(i);
+            long asserted = entry.asserted() != null
+                    ? entry.asserted()
+                    : getAssertedAtIndex(assertedValues, i, fallbackAsserted);
+            claims.add(new VisaClaim(
+                    VisaType.AcceptedTermsAndPolicies.name(),
+                    entry.value(),
+                    "self",
+                    asserted));
+        }
+        return claims;
+    }
+
+    private List<TermsEntry> parseTermsEntriesFromAttributeValues(List<String> attributeValues,
+            long fallbackAsserted) {
+        List<TermsEntry> entries = new ArrayList<>();
+
+        for (String attributeValue : attributeValues) {
+            String normalized = attributeValue.trim();
+            if (normalized.isEmpty()) {
+                continue;
+            }
+
+            TermsEntry parsed = parseStructuredTermsEntry(normalized);
+            if (parsed != null) {
+                entries.add(parsed);
+                continue;
+            }
+
+            // JSON-like payloads should provide structured data; skip invalid ones.
+            if (normalized.startsWith("{")) {
+                continue;
+            }
+
+            entries.add(new TermsEntry(normalized, fallbackAsserted));
+        }
+
+        // Preserve insertion order while deduplicating exact duplicates.
+        Set<TermsEntry> deduplicatedEntries = new LinkedHashSet<>(entries);
+        return new ArrayList<>(deduplicatedEntries);
+    }
+
+    private TermsEntry parseStructuredTermsEntry(String attributeValue) {
+        if (attributeValue.startsWith("{")) {
+            try {
+                @SuppressWarnings("unchecked") Map<String, Object> json = org.keycloak.util.JsonSerialization
+                        .readValue(
+                                attributeValue, Map.class);
+                String value = firstNonBlank(
+                        objectAsString(json.get("value")),
+                        objectAsString(json.get("url")),
+                        objectAsString(json.get("version")));
+                if (value == null) {
+                    return null;
+                }
+                Long asserted = Stream.of(
+                        json.get("asserted"),
+                        json.get("accepted"),
+                        json.get("accepted_at"),
+                        json.get("acceptedAt"))
+                        .map(this::parseEpochSecond)
+                        .filter(OptionalLong::isPresent)
+                        .map(OptionalLong::getAsLong)
+                        .findFirst()
+                        .orElse(null);
+                return new TermsEntry(value, asserted);
+            } catch (Exception ignored) {
+                // Fall through to delimiter parsing.
+            }
+        }
+
+        if (attributeValue.contains("|")) {
+            String[] parts = attributeValue.split("\\|");
+            if (parts.length == 2) {
+                String left = parts[0].trim();
+                String right = parts[1].trim();
+                OptionalLong leftAsEpoch = parseEpochSecond(left);
+                OptionalLong rightAsEpoch = parseEpochSecond(right);
+
+                if (leftAsEpoch.isPresent() && !rightAsEpoch.isPresent()) {
+                    return new TermsEntry(right, leftAsEpoch.getAsLong());
+                }
+                if (rightAsEpoch.isPresent() && !leftAsEpoch.isPresent()) {
+                    return new TermsEntry(left, rightAsEpoch.getAsLong());
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private List<Long> getAssertedValues(UserModel user, List<String> attributeKeys) {
+        return attributeKeys.stream()
+                .flatMap(key -> getAttributeValues(user, key).stream())
+                .map(this::parseEpochSecond)
+                .filter(OptionalLong::isPresent)
+                .map(OptionalLong::getAsLong)
+                .collect(Collectors.toList());
+    }
+
+    private List<String> getNormalizedAttributeValues(UserModel user, String key) {
+        return getAttributeValues(user, key).stream()
+                .flatMap(value -> Stream.of(value.split(",")))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toList());
+    }
+
+    private List<String> getAttributeValues(UserModel user, String key) {
+        Map<String, List<String>> attributes = user.getAttributes();
+        if (attributes == null) {
+            return Collections.emptyList();
+        }
+        return attributes.getOrDefault(key, Collections.emptyList());
+    }
+
+    private long getFallbackAsserted(UserModel user) {
+        Long createdTimestamp = user.getCreatedTimestamp();
+        if (createdTimestamp != null && createdTimestamp > 0) {
+            return createdTimestamp / 1000;
+        }
+        return Instant.now().getEpochSecond();
+    }
+
+    private long getAssertedAtIndex(List<Long> assertedValues, int index, long fallbackAsserted) {
+        if (index >= 0 && index < assertedValues.size()) {
+            return assertedValues.get(index);
+        }
+        return fallbackAsserted;
+    }
+
+    private OptionalLong parseEpochSecond(Object rawValue) {
+        String value = objectAsString(rawValue);
+        if (value == null || value.isBlank()) {
+            return OptionalLong.empty();
+        }
+        try {
+            long parsed = Long.parseLong(value.trim());
+            // Support epoch milliseconds while storing in seconds.
+            return OptionalLong.of(parsed > 9_999_999_999L ? parsed / 1000 : parsed);
+        } catch (NumberFormatException e) {
+            try {
+                return OptionalLong.of(Instant.parse(value.trim()).getEpochSecond());
+            } catch (Exception ignored) {
+                return OptionalLong.empty();
+            }
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String objectAsString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        return String.valueOf(value);
+    }
+
     @SuppressWarnings("deprecation")
-    private String signedVisaAsString(String username, String type, String value, String by) {
+    private String signedVisaAsString(String username, String type, String value, String by,
+            long asserted) {
         // Construct Claims
         long now = Instant.now().getEpochSecond();
         JsonWebToken visa = new JsonWebToken();
@@ -126,7 +385,7 @@ public class VisaResource {
         ga4ghClaims.put("type", type);
         ga4ghClaims.put("value", value);
         ga4ghClaims.put("source", issuer);
-        ga4ghClaims.put("asserted", now);
+        ga4ghClaims.put("asserted", asserted);
         ga4ghClaims.put("by", by);
 
         visa.setOtherClaims("ga4gh_visa_v1", ga4ghClaims);
@@ -234,5 +493,11 @@ public class VisaResource {
                         .getName() + "\"")
                 .entity(message)
                 .build();
+    }
+
+    private record VisaClaim(String type, String value, String by, long asserted) {
+    }
+
+    private record TermsEntry(String value, Long asserted) {
     }
 }
