@@ -5,24 +5,23 @@
 package lu.lnds.ga4ghvisaissuer.rest;
 
 import lu.lnds.ga4ghvisaissuer.dto.GetPermissionsResponse;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.interfaces.DecodedJWT;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.KeyManager;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.KeyManager;
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.RoleModel;
-import java.util.Base64;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -30,6 +29,9 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -74,6 +76,9 @@ class VisaResourceTest {
 
         lenient().when(session.users()).thenReturn(userProvider);
         lenient().when(session.keys()).thenReturn(keyManager);
+        lenient().when(user.getAttributes()).thenReturn(Map.of());
+        lenient().when(user.getRoleMappingsStream()).thenAnswer(invocation -> Stream.empty());
+        lenient().when(user.getCreatedTimestamp()).thenReturn(1703107576892L);
     }
 
     @Test
@@ -82,6 +87,12 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
         when(user.getUsername()).thenReturn("researcher");
+        when(user.getAttributes()).thenReturn(Map.of(
+                "roles", List.of("registered_researcher"),
+                "role_assigned_at", List.of("1710000000"),
+                "accepted_terms_and_policies", List.of(
+                        "1700000000|https://example.org/terms/v1",
+                        "1720000000|https://example.org/terms/v2")));
 
         // Mock Auth
         String clientId = "gdi";
@@ -96,16 +107,8 @@ class VisaResourceTest {
         when(serviceAccountUser.hasRole(role)).thenReturn(true);
 
         // Mock Key
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        KeyPair kp = kpg.generateKeyPair();
-        KeyWrapper keyWrapper = new KeyWrapper();
-        keyWrapper.setPrivateKey(kp.getPrivate());
-        keyWrapper.setPublicKey(kp.getPublic());
-        keyWrapper.setAlgorithm(Algorithm.RS256);
-        keyWrapper.setKid("key-id");
-
-        when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256)).thenReturn(keyWrapper);
+        when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256)).thenReturn(
+                buildSigningKey());
 
         Response response = visaResource.getUserPermissions(authHeader, elixirId);
 
@@ -113,7 +116,7 @@ class VisaResourceTest {
         GetPermissionsResponse permissions = (GetPermissionsResponse) response.getEntity();
         assertNotNull(permissions);
         assertNotNull(permissions.getGa4ghPassportV1());
-        assertEquals(2, permissions.getGa4ghPassportV1().size());
+        assertEquals(3, permissions.getGa4ghPassportV1().size());
 
         // Basic JWT verification (checking if it's a string looking like a JWT)
         String visaString = permissions.getGa4ghPassportV1().get(0);
@@ -124,6 +127,33 @@ class VisaResourceTest {
         String jku = visa.getHeaderClaim("jku").asString();
         assertNotNull(jku, "jku header should be present");
         assertTrue(jku.endsWith("/realms/master/protocol/openid-connect/certs"));
+
+        List<Map<String, Object>> ga4ghVisaClaims = permissions.getGa4ghPassportV1().stream()
+                .map(JWT::decode)
+                .map(decoded -> decoded.getClaim("ga4gh_visa_v1").asMap())
+                .toList();
+
+        Map<String, Object> roleVisa = ga4ghVisaClaims.stream()
+                .filter(claim -> "ResearcherStatus".equals(claim.get("type")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("registered_researcher", roleVisa.get("value"));
+        assertEquals("so", roleVisa.get("by"));
+        assertEquals(1710000000L, ((Number) roleVisa.get("asserted")).longValue());
+
+        List<Map<String, Object>> termsVisas = ga4ghVisaClaims.stream()
+                .filter(claim -> "AcceptedTermsAndPolicies".equals(claim.get("type")))
+                .toList();
+        assertEquals(2, termsVisas.size());
+        assertTrue(termsVisas.stream().allMatch(claim -> "self".equals(claim.get("by"))));
+        assertTrue(termsVisas.stream().anyMatch(claim -> "https://example.org/terms/v1".equals(
+                claim.get("value"))));
+        assertTrue(termsVisas.stream().anyMatch(claim -> "https://example.org/terms/v2".equals(
+                claim.get("value"))));
+        assertTrue(termsVisas.stream().anyMatch(claim -> ((Number) claim.get("asserted"))
+                .longValue() == 1700000000L));
+        assertTrue(termsVisas.stream().anyMatch(claim -> ((Number) claim.get("asserted"))
+                .longValue() == 1720000000L));
     }
 
     @Test
@@ -175,6 +205,10 @@ class VisaResourceTest {
         String elixirId = "error-user";
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
+        when(user.getUsername()).thenReturn("researcher");
+        when(user.getAttributes()).thenReturn(Map.of(
+                "roles", List.of("registered_researcher"),
+                "accepted_terms_and_policies", List.of("https://example.org/terms/v1")));
         when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256))
                 .thenThrow(new RuntimeException("Signing failed"));
 
@@ -200,6 +234,9 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
         when(user.getUsername()).thenReturn("researcher");
+        when(user.getAttributes()).thenReturn(Map.of(
+                "roles", List.of("registered_researcher"),
+                "accepted_terms_and_policies", List.of("https://example.org/terms/v1")));
 
         // Mock active key returning null
         when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256)).thenReturn(null);
@@ -322,5 +359,17 @@ class VisaResourceTest {
         Response response = visaResource.getUserPermissions(authHeader, "dummy");
         assertEquals(403, response.getStatus());
         assertEquals("Client lacks the 'ga4gh-visa-issuer' role.", response.getEntity());
+    }
+
+    private KeyWrapper buildSigningKey() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair kp = kpg.generateKeyPair();
+        KeyWrapper keyWrapper = new KeyWrapper();
+        keyWrapper.setPrivateKey(kp.getPrivate());
+        keyWrapper.setPublicKey(kp.getPublic());
+        keyWrapper.setAlgorithm(Algorithm.RS256);
+        keyWrapper.setKid("key-id");
+        return keyWrapper;
     }
 }
