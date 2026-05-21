@@ -275,8 +275,9 @@
         "attributes" : { }
       } ],
       "gdi" : [ {
-        "id" : "65586c48-97a5-4831-b891-0089ed1cd087",
-        "name" : "uma_protection",
+        "id" : "dd1ca63b-574d-431c-953b-f7de73438e86",
+        "name" : "RESEARCHER",
+        "description" : "",
         "composite" : false,
         "clientRole" : true,
         "containerId" : "49dfabcd-b980-414c-94a8-fdb65533ad2f",
@@ -377,7 +378,11 @@
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
   "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName" ],
-  "localizationTexts" : { },
+  "localizationTexts" : {
+    "en" : {
+      "termsText" : "Accepted"
+    }
+  },
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -408,7 +413,9 @@
     "email" : "your_email@example.com",
     "emailVerified" : false,
     "attributes" : {
-      "elixir_id" : [ "dummy" ]
+      "elixir_id" : [ "dummy" ],
+      "accepted_terms_and_conditions" : [ "accepted" ],
+      "accepted_terms_and_conditions_timestamp" : [ "1720000000" ]
     },
     "enabled" : true,
     "createdTimestamp" : 1703107576892,
@@ -424,6 +431,10 @@
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-gdi" ],
+    "clientRoles" : {
+      "broker" : [ "read-token" ],
+      "gdi" : [ "RESEARCHER" ]
+    },
     "notBefore" : 0,
     "groups" : [ ]
   }, {
@@ -523,7 +534,7 @@
       "consentRequired" : false,
       "config" : { }
     } ],
-    "defaultClientScopes" : [ "web-origins", "acr", "profile", "roles", "basic", "email" ],
+    "defaultClientScopes" : [ "web-origins", "service_account", "acr", "elixir_id", "profile", "roles", "basic", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
   }, {
     "id" : "1a45d7a0-077f-4ec0-8e39-2526c2f3ff5f",
@@ -1447,7 +1458,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-role-list-mapper", "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-property-mapper", "oidc-full-name-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-property-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-attribute-mapper", "oidc-address-mapper", "saml-user-property-mapper", "oidc-usermodel-attribute-mapper", "oidc-full-name-mapper" ]
       }
     }, {
       "id" : "1a9c6e95-2a93-47b4-83ee-b414941cac4e",
@@ -1491,7 +1502,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "saml-user-property-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-property-mapper", "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "saml-user-property-mapper", "oidc-full-name-mapper", "saml-role-list-mapper", "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper" ]
       }
     }, {
       "id" : "c6451db3-895c-4b82-9b16-3923fc8161f4",
@@ -1574,7 +1585,9 @@
       }
     } ]
   },
-  "internationalizationEnabled" : false,
+  "internationalizationEnabled" : true,
+  "supportedLocales" : [ "en" ],
+  "defaultLocale" : "en",
   "authenticationFlows" : [ {
     "id" : "c9aa61d3-5d87-4cb2-83a9-fc164f2b5930",
     "alias" : "Account verification options",
@@ -1616,6 +1629,58 @@
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 20,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    } ]
+  }, {
+    "id" : "16411ffa-cdf9-40bb-9d06-40de13d84c8e",
+    "alias" : "Copy of registration",
+    "description" : "registration flow",
+    "providerId" : "basic-flow",
+    "topLevel" : true,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticator" : "registration-page-form",
+      "authenticatorFlow" : true,
+      "requirement" : "REQUIRED",
+      "priority" : 10,
+      "autheticatorFlow" : true,
+      "flowAlias" : "Copy of registration registration form",
+      "userSetupAllowed" : false
+    } ]
+  }, {
+    "id" : "6e76ce05-128f-4a95-ab0d-80f6b5d8ad38",
+    "alias" : "Copy of registration registration form",
+    "description" : "registration form",
+    "providerId" : "form-flow",
+    "topLevel" : false,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticator" : "registration-terms-and-conditions",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 20,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "registration-user-creation",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 50,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "registration-password-action",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 60,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "registration-recaptcha-action",
+      "authenticatorFlow" : false,
+      "requirement" : "DISABLED",
+      "priority" : 61,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
@@ -2035,8 +2100,8 @@
     "alias" : "TERMS_AND_CONDITIONS",
     "name" : "Terms and Conditions",
     "providerId" : "TERMS_AND_CONDITIONS",
-    "enabled" : false,
-    "defaultAction" : false,
+    "enabled" : true,
+    "defaultAction" : true,
     "priority" : 20,
     "config" : { }
   }, {
@@ -2113,7 +2178,7 @@
     "config" : { }
   } ],
   "browserFlow" : "browser",
-  "registrationFlow" : "registration",
+  "registrationFlow" : "Copy of registration",
   "directGrantFlow" : "direct grant",
   "resetCredentialsFlow" : "reset credentials",
   "clientAuthenticationFlow" : "clients",

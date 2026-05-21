@@ -49,17 +49,24 @@ In this template, you will find jobs for [ORT](https://oss-review-toolkit.org/or
 
 The Visa Issuer uses the `elixir_id` user attribute to look up users and issue visas. Ensure your Keycloak users have this attribute set.
 
-For GA4GH visa mapping, user metadata is read from Keycloak user attributes:
+GA4GH visa mapping is intentionally strict and simple:
 
 - **ResearcherStatus visa** (`by: so`)
-  - Role values are read from one of: `role`, `roles`, `user_role`, `user_roles`, `researcher_status`.
-  - Role asserted timestamps are read from one of: `role_asserted`, `roles_asserted`, `role_assigned`, `role_assigned_at`, `researcher_status_asserted`.
-  - If no role attributes are present, assigned Keycloak realm roles are used (excluding built-in default roles such as `default-roles-{realm}`, `offline_access`, and `uma_authorization`).
+  - Issued only for user roles that have a role attribute named `gdi`.
+  - `value` is the role name.
+  - `asserted` is the first value of that role attribute `gdi` (must be epoch seconds).
 
 - **AcceptedTermsAndPolicies visa** (`by: self`)
-  - Terms values are read from one of: `accepted_terms_and_policies`, `accepted_terms_and_conditions`, `accepted_terms`, `terms_and_conditions`.
-  - Terms asserted timestamps are read from one of: `accepted_terms_and_policies_asserted`, `accepted_terms_and_conditions_asserted`, `accepted_terms_asserted`, `terms_and_conditions_asserted`, `terms_and_conditions_accepted_at`.
-  - Each term entry should represent one acknowledged version (for example: `1700000000|https://example.org/terms/v1`), and each version generates its own `AcceptedTermsAndPolicies` visa.
+  - Issued only when user attribute `accepted_terms_and_conditions` is exactly `accepted`.
+  - `value` is always `accepted`.
+  - `asserted` comes from user attribute `accepted_terms_and_conditions_timestamp` (must be epoch seconds).
+
+Example realm configuration:
+
+- Role attribute: `"gdi" : [ "1710000000" ]`
+- User attributes:
+  - `"accepted_terms_and_conditions" : [ "accepted" ]`
+  - `"accepted_terms_and_conditions_timestamp" : [ "1720000000" ]`
 
 ### API Endpoints
 
