@@ -33,13 +33,18 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 @Log
 public class VisaResource {
 
     private static final String REQUIRED_ROLE = "ga4gh-visa-issuer";
+    private static final String GDI_ATTRIBUTE = "gdi";
+    private static final String ACCEPTED_TERMS_ATTRIBUTE = "accepted_terms_and_conditions";
+    private static final String ACCEPTED_TERMS_TIMESTAMP_ATTRIBUTE = "accepted_terms_and_conditions_timestamp";
 
     private final KeycloakSession session;
 
@@ -78,19 +83,38 @@ public class VisaResource {
         List<String> passports = new ArrayList<>();
 
         try {
-            // ResearcherStatus
-            passports.add(signedVisaAsString(
-                    user.getUsername(),
-                    "ResearcherStatus",
-                    "https://doi.org/10.1038/s41431-018-0219-y",
-                    "so"));
+            List<RoleModel> userRoles = user.getRoleMappingsStream().collect(Collectors.toList());
+            for (RoleModel role : userRoles) {
+                List<String> gdiAttributeValues = role.getAttributes().get(GDI_ATTRIBUTE);
+                if (gdiAttributeValues == null || gdiAttributeValues.isEmpty()) {
+                    continue;
+                }
 
-            // AcceptedTermsAndPolicies
-            passports.add(signedVisaAsString(
-                    user.getUsername(),
-                    "AcceptedTermsAndPolicies",
-                    "https://doi.org/10.1038/s41431-018-0219-y",
-                    "self"));
+                OptionalLong roleAsserted = parseEpochSecond(gdiAttributeValues.get(0));
+                if (roleAsserted.isEmpty()) {
+                    continue;
+                }
+
+                passports.add(signedVisaAsString(
+                        user.getUsername(),
+                        "ResearcherStatus",
+                        role.getName(),
+                        "so",
+                        roleAsserted.getAsLong()));
+            }
+
+            String acceptedTerms = user.getFirstAttribute(ACCEPTED_TERMS_ATTRIBUTE);
+            OptionalLong acceptedTermsAsserted = parseEpochSecond(user.getFirstAttribute(
+                    ACCEPTED_TERMS_TIMESTAMP_ATTRIBUTE));
+
+            if ("accepted".equalsIgnoreCase(acceptedTerms) && acceptedTermsAsserted.isPresent()) {
+                passports.add(signedVisaAsString(
+                        user.getUsername(),
+                        "AcceptedTermsAndPolicies",
+                        "accepted",
+                        "self",
+                        acceptedTermsAsserted.getAsLong()));
+            }
         } catch (Exception e) {
             log.log(Level.INFO, "Failed to sign visa: " + e.getMessage(), e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
@@ -105,7 +129,8 @@ public class VisaResource {
     }
 
     @SuppressWarnings("deprecation")
-    private String signedVisaAsString(String username, String type, String value, String by) {
+    private String signedVisaAsString(String username, String type, String value, String by,
+            long asserted) {
         // Construct Claims
         long now = Instant.now().getEpochSecond();
         JsonWebToken visa = new JsonWebToken();
@@ -126,7 +151,7 @@ public class VisaResource {
         ga4ghClaims.put("type", type);
         ga4ghClaims.put("value", value);
         ga4ghClaims.put("source", issuer);
-        ga4ghClaims.put("asserted", now);
+        ga4ghClaims.put("asserted", asserted);
         ga4ghClaims.put("by", by);
 
         visa.setOtherClaims("ga4gh_visa_v1", ga4ghClaims);
@@ -234,5 +259,16 @@ public class VisaResource {
                         .getName() + "\"")
                 .entity(message)
                 .build();
+    }
+
+    private OptionalLong parseEpochSecond(String timestamp) {
+        if (timestamp == null || timestamp.isBlank()) {
+            return OptionalLong.empty();
+        }
+        try {
+            return OptionalLong.of(Long.parseLong(timestamp));
+        } catch (NumberFormatException ignored) {
+            return OptionalLong.empty();
+        }
     }
 }

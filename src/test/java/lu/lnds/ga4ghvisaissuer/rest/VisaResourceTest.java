@@ -23,6 +23,8 @@ import org.keycloak.models.KeyManager;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.RoleModel;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -58,6 +60,10 @@ class VisaResourceTest {
     private UserModel serviceAccountUser;
     @Mock
     private RoleModel role;
+    @Mock
+    private RoleModel userRoleWithGdi;
+    @Mock
+    private RoleModel userRoleWithoutGdi;
 
     private VisaResource visaResource;
 
@@ -74,6 +80,10 @@ class VisaResourceTest {
 
         lenient().when(session.users()).thenReturn(userProvider);
         lenient().when(session.keys()).thenReturn(keyManager);
+        lenient().when(user.getRoleMappingsStream()).thenAnswer(invocation -> Stream.empty());
+        lenient().when(user.getFirstAttribute("accepted_terms_and_conditions")).thenReturn(null);
+        lenient().when(user.getFirstAttribute("accepted_terms_and_conditions_timestamp"))
+                .thenReturn(null);
     }
 
     @Test
@@ -82,6 +92,14 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
         when(user.getUsername()).thenReturn("researcher");
+        when(user.getRoleMappingsStream()).thenReturn(Stream.of(userRoleWithGdi,
+                userRoleWithoutGdi));
+        when(userRoleWithGdi.getName()).thenReturn("gdi_researcher");
+        when(userRoleWithGdi.getAttributes()).thenReturn(Map.of("gdi", List.of("1710000000")));
+        when(userRoleWithoutGdi.getAttributes()).thenReturn(Map.of());
+        when(user.getFirstAttribute("accepted_terms_and_conditions")).thenReturn("accepted");
+        when(user.getFirstAttribute("accepted_terms_and_conditions_timestamp")).thenReturn(
+                "1720000000");
 
         // Mock Auth
         String clientId = "gdi";
@@ -124,6 +142,27 @@ class VisaResourceTest {
         String jku = visa.getHeaderClaim("jku").asString();
         assertNotNull(jku, "jku header should be present");
         assertTrue(jku.endsWith("/realms/master/protocol/openid-connect/certs"));
+
+        List<Map<String, Object>> ga4ghVisaClaims = permissions.getGa4ghPassportV1().stream()
+                .map(JWT::decode)
+                .map(decoded -> decoded.getClaim("ga4gh_visa_v1").asMap())
+                .toList();
+
+        Map<String, Object> roleVisa = ga4ghVisaClaims.stream()
+                .filter(claim -> "ResearcherStatus".equals(claim.get("type")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("gdi_researcher", roleVisa.get("value"));
+        assertEquals("so", roleVisa.get("by"));
+        assertEquals(1710000000L, ((Number) roleVisa.get("asserted")).longValue());
+
+        Map<String, Object> acceptedTermsVisa = ga4ghVisaClaims.stream()
+                .filter(claim -> "AcceptedTermsAndPolicies".equals(claim.get("type")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("accepted", acceptedTermsVisa.get("value"));
+        assertEquals("self", acceptedTermsVisa.get("by"));
+        assertEquals(1720000000L, ((Number) acceptedTermsVisa.get("asserted")).longValue());
     }
 
     @Test
@@ -175,6 +214,10 @@ class VisaResourceTest {
         String elixirId = "error-user";
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
+        when(user.getUsername()).thenReturn("researcher");
+        when(user.getRoleMappingsStream()).thenReturn(Stream.of(userRoleWithGdi));
+        when(userRoleWithGdi.getName()).thenReturn("gdi_researcher");
+        when(userRoleWithGdi.getAttributes()).thenReturn(Map.of("gdi", List.of("1710000000")));
         when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256))
                 .thenThrow(new RuntimeException("Signing failed"));
 
@@ -200,6 +243,9 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
         when(user.getUsername()).thenReturn("researcher");
+        when(user.getRoleMappingsStream()).thenReturn(Stream.of(userRoleWithGdi));
+        when(userRoleWithGdi.getName()).thenReturn("gdi_researcher");
+        when(userRoleWithGdi.getAttributes()).thenReturn(Map.of("gdi", List.of("1710000000")));
 
         // Mock active key returning null
         when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256)).thenReturn(null);
@@ -221,6 +267,38 @@ class VisaResourceTest {
         // block
         assertEquals(500, response.getStatus());
         assertEquals("Active key not found for realm", response.getEntity());
+    }
+
+    @Test
+    void testGetUserPermissions_SkipsVisasWithoutRequiredData() {
+        String elixirId = "elixir-user";
+        when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
+                .thenReturn(Stream.of(user));
+        when(user.getRoleMappingsStream()).thenReturn(Stream.of(userRoleWithoutGdi));
+        when(userRoleWithoutGdi.getAttributes()).thenReturn(Map.of());
+        when(user.getFirstAttribute("accepted_terms_and_conditions")).thenReturn("accepted");
+        when(user.getFirstAttribute("accepted_terms_and_conditions_timestamp")).thenReturn(
+                "not-a-timestamp");
+
+        // Mock Auth
+        String clientId = "gdi";
+        String secret = "secret";
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + secret)
+                .getBytes());
+
+        when(realm.getClientByClientId(clientId)).thenReturn(client);
+        when(client.getSecret()).thenReturn(secret);
+        when(session.users().getServiceAccount(client)).thenReturn(serviceAccountUser);
+        when(realm.getRole("ga4gh-visa-issuer")).thenReturn(role);
+        when(serviceAccountUser.hasRole(role)).thenReturn(true);
+
+        Response response = visaResource.getUserPermissions(authHeader, elixirId);
+
+        assertEquals(200, response.getStatus());
+        GetPermissionsResponse permissions = (GetPermissionsResponse) response.getEntity();
+        assertNotNull(permissions);
+        assertNotNull(permissions.getGa4ghPassportV1());
+        assertEquals(0, permissions.getGa4ghPassportV1().size());
     }
 
     @Test

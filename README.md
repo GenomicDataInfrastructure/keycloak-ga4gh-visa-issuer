@@ -49,6 +49,25 @@ In this template, you will find jobs for [ORT](https://oss-review-toolkit.org/or
 
 The Visa Issuer uses the `elixir_id` user attribute to look up users and issue visas. Ensure your Keycloak users have this attribute set.
 
+GA4GH visa mapping is intentionally strict and simple:
+
+- **ResearcherStatus visa** (`by: so`)
+  - Issued only for user roles that have a role attribute named `gdi`.
+  - `value` is the role name.
+  - `asserted` is the first value of that role attribute `gdi` (must be epoch seconds).
+
+- **AcceptedTermsAndPolicies visa** (`by: self`)
+  - Issued only when user attribute `accepted_terms_and_conditions` is exactly `accepted`.
+  - `value` is always `accepted`.
+  - `asserted` comes from user attribute `accepted_terms_and_conditions_timestamp` (must be epoch seconds).
+
+Example realm configuration:
+
+- Role attribute: `"gdi" : [ "1710000000" ]`
+- User attributes:
+  - `"accepted_terms_and_conditions" : [ "accepted" ]`
+  - `"accepted_terms_and_conditions_timestamp" : [ "1720000000" ]`
+
 ### API Endpoints
 
 - **Get JWK**: `GET /realms/{realm}/protocol/openid-connect/certs`

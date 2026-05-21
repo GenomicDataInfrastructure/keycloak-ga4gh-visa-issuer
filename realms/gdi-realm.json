@@ -67,7 +67,9 @@
       },
       "clientRole" : false,
       "containerId" : "6f348afb-6f1f-428c-a4f9-5f8e2374a075",
-      "attributes" : { }
+      "attributes" : {
+        "gdi" : [ "1710000000" ]
+      }
     }, {
       "id" : "20d863dd-6c6a-4357-bea7-50ca195e9032",
       "name" : "offline_access",
@@ -408,7 +410,9 @@
     "email" : "your_email@example.com",
     "emailVerified" : false,
     "attributes" : {
-      "elixir_id" : [ "dummy" ]
+      "elixir_id" : [ "dummy" ],
+      "accepted_terms_and_conditions" : [ "accepted" ],
+      "accepted_terms_and_conditions_timestamp" : [ "1720000000" ]
     },
     "enabled" : true,
     "createdTimestamp" : 1703107576892,
