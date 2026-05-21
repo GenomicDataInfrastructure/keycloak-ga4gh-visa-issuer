@@ -1,0 +1,8 @@
+// SPDX-FileCopyrightText: 2026 PNED G.I.E.
+// SPDX-License-Identifier: Apache-2.0
+GET http://localhost:8080/realms/gdi/ga4gh-visa-issuer/api/permissions/dummy
+Authorization: Basic bHMtYWFpLXNlcnZpY2UtYWNjb3VudDphdWQ2Y2dmUWg1RGxxbXo0ZVVNc2E5NURuU2JvZjV3SA==
+
+--
+
+GET http://localhost:8080/realms/gdi/protocol/openid-connect/certs

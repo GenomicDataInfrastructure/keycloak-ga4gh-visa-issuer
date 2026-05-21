@@ -31,9 +31,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.OptionalLong;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -42,8 +41,7 @@ public class VisaResource {
 
     private static final String REQUIRED_ROLE = "ga4gh-visa-issuer";
     private static final String RESEARCHER_ROLE = "RESEARCHER";
-    private static final String ACCEPTED_TERMS_ATTRIBUTE = "accepted_terms_and_conditions";
-    private static final String ACCEPTED_TERMS_TIMESTAMP_ATTRIBUTE = "accepted_terms_and_conditions_timestamp";
+    private static final String ACCEPTED_TERMS_TIMESTAMP_ATTRIBUTE = "terms_and_conditions";
 
     private final KeycloakSession session;
 
@@ -57,12 +55,12 @@ public class VisaResource {
     public Response getUserPermissions(
             @HeaderParam("Authorization") String authorizationHeader,
             @PathParam("user") String userIdentifier) {
-        Response response = validateClient(authorizationHeader);
+        var response = validateClient(authorizationHeader);
         if (response != null) {
             return response;
         }
 
-        List<UserModel> users = session.users()
+        var users = session.users()
                 .searchForUserByUserAttributeStream(
                         session.getContext().getRealm(),
                         "elixir_id",
@@ -77,12 +75,12 @@ public class VisaResource {
             return Response.status(Response.Status.CONFLICT).entity("Multiple users found").build();
         }
 
-        UserModel user = users.get(0);
+        var user = users.get(0);
 
-        List<String> passports = new ArrayList<>();
+        var passports = new ArrayList<String>();
 
         try {
-            boolean hasResearcherRole = user.getRoleMappingsStream()
+            var hasResearcherRole = user.getRoleMappingsStream()
                     .map(RoleModel::getName)
                     .anyMatch(roleName -> RESEARCHER_ROLE.equalsIgnoreCase(roleName));
             if (hasResearcherRole) {
@@ -94,17 +92,17 @@ public class VisaResource {
                         Instant.now().getEpochSecond()));
             }
 
-            String acceptedTerms = user.getFirstAttribute(ACCEPTED_TERMS_ATTRIBUTE);
-            OptionalLong acceptedTermsAsserted = parseEpochSecond(user.getFirstAttribute(
-                    ACCEPTED_TERMS_TIMESTAMP_ATTRIBUTE));
+            var acceptedTermsAsserted = parseEpochSecond(
+                    user.getFirstAttribute(ACCEPTED_TERMS_TIMESTAMP_ATTRIBUTE)
+            );
 
-            if ("accepted".equalsIgnoreCase(acceptedTerms) && acceptedTermsAsserted.isPresent()) {
+            if (acceptedTermsAsserted.isPresent()) {
                 passports.add(signedVisaAsString(
                         user.getUsername(),
                         "AcceptedTermsAndPolicies",
                         "accepted",
                         "self",
-                        acceptedTermsAsserted.getAsLong()));
+                        acceptedTermsAsserted.get()));
             }
         } catch (Exception e) {
             log.log(Level.INFO, "Failed to sign visa: " + e.getMessage(), e);
@@ -252,14 +250,9 @@ public class VisaResource {
                 .build();
     }
 
-    private OptionalLong parseEpochSecond(String timestamp) {
-        if (timestamp == null || timestamp.isBlank()) {
-            return OptionalLong.empty();
-        }
-        try {
-            return OptionalLong.of(Long.parseLong(timestamp));
-        } catch (NumberFormatException ignored) {
-            return OptionalLong.empty();
-        }
+    private Optional<Long> parseEpochSecond(String timestamp) {
+        return Optional.ofNullable(timestamp)
+                .filter(it -> it.matches("^\\d+$"))
+                .map(Long::parseLong);
     }
 }
