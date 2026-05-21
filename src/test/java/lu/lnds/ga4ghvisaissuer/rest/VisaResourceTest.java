@@ -81,9 +81,7 @@ class VisaResourceTest {
         lenient().when(session.users()).thenReturn(userProvider);
         lenient().when(session.keys()).thenReturn(keyManager);
         lenient().when(user.getRoleMappingsStream()).thenAnswer(invocation -> Stream.empty());
-        lenient().when(user.getFirstAttribute("accepted_terms_and_conditions")).thenReturn(null);
-        lenient().when(user.getFirstAttribute("accepted_terms_and_conditions_timestamp"))
-                .thenReturn(null);
+        lenient().when(user.getFirstAttribute("terms_and_conditions")).thenReturn(null);
     }
 
     @Test
@@ -96,9 +94,7 @@ class VisaResourceTest {
                 researcherRole));
         when(nonResearcherRole.getName()).thenReturn("USER");
         when(researcherRole.getName()).thenReturn("RESEARCHER");
-        when(user.getFirstAttribute("accepted_terms_and_conditions")).thenReturn("accepted");
-        when(user.getFirstAttribute("accepted_terms_and_conditions_timestamp")).thenReturn(
-                "1720000000");
+        when(user.getFirstAttribute("terms_and_conditions")).thenReturn("1720000000");
 
         // Mock Auth
         String clientId = "gdi";
@@ -273,9 +269,7 @@ class VisaResourceTest {
                 .thenReturn(Stream.of(user));
         when(user.getRoleMappingsStream()).thenReturn(Stream.of(nonResearcherRole));
         when(nonResearcherRole.getName()).thenReturn("USER");
-        when(user.getFirstAttribute("accepted_terms_and_conditions")).thenReturn("accepted");
-        when(user.getFirstAttribute("accepted_terms_and_conditions_timestamp")).thenReturn(
-                "not-a-timestamp");
+        when(user.getFirstAttribute("terms_and_conditions")).thenReturn("not-a-timestamp");
 
         // Mock Auth
         String clientId = "gdi";

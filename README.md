@@ -18,7 +18,7 @@ This is a Keycloak Ga4GH Visa Issuer. It suggests an initial setup for a success
 
 ## Software Development Guidelines
 
-- We use Maven to build the Java project and Docker to package it.
+- We use Maven to build the Java project and Docker/Podman to package it.
 - GitHub offers free storage for open source projects.
 - Testing is fundamental for stable and secure code.
 - Follow free and Open Source Software principles:
@@ -29,7 +29,7 @@ This is a Keycloak Ga4GH Visa Issuer. It suggests an initial setup for a success
     - For more suggestions, please check [OpenSSF Best Practices](https://www.bestpractices.dev/en).
 - Automated and recurrent CI/CD - GitHub offers a few thousand minutes per month.
 - Quality checks are mandatory - SonarCloud is free for open-source projects.
-- Vulnerability checks are mandatory - SonarCloud for code, ORT for dependencies, Trivy for packages and libraries inside docker images.
+- Vulnerability checks are mandatory - SonarCloud for code, ORT for dependencies, Trivy for packages and libraries inside images.
 
 ## CI/CD
 
@@ -52,21 +52,21 @@ The Visa Issuer uses the `elixir_id` user attribute to look up users and issue v
 GA4GH visa mapping is intentionally strict and simple:
 
 - **ResearcherStatus visa** (`by: so`)
-  - Issued only for user roles that have a role attribute named `gdi`.
+  - Issued only for user roles that have a client role called `RESEARCHER`.
   - `value` is the role name.
-  - `asserted` is the first value of that role attribute `gdi` (must be epoch seconds).
+  - `asserted` is the current time in epoch seconds.
 
 - **AcceptedTermsAndPolicies visa** (`by: self`)
-  - Issued only when user attribute `accepted_terms_and_conditions` is exactly `accepted`.
+  - Issued only when user attribute `terms_and_conditions` is non-null epoch seconds.
   - `value` is always `accepted`.
-  - `asserted` comes from user attribute `accepted_terms_and_conditions_timestamp` (must be epoch seconds).
+  - `asserted` comes from user attribute `terms_and_conditions` parsed to long.
 
 Example realm configuration:
 
-- Role attribute: `"gdi" : [ "1710000000" ]`
-- User attributes:
-  - `"accepted_terms_and_conditions" : [ "accepted" ]`
-  - `"accepted_terms_and_conditions_timestamp" : [ "1720000000" ]`
+- client role: `gdi`
+- User attribute:
+  - `"elixir_id" : "dummy"`
+  - `"terms_and_conditions" : "1720000000"`
 
 ### API Endpoints
 
@@ -78,34 +78,28 @@ Example realm configuration:
   - Returns `409 Conflict` if multiple users are found with the same `elixir_id`.
   - Returns `500 Internal Server Error` if there is a server-side error (e.g. visa signing failure).
 
-### Development (Docker Compose)
+### Development (Compose)
 
-The development setup includes pre-configured users and realms. Ensure you have Docker and Docker Compose installed with enough resources (at least 4GB of RAM).
-
-For MacOS ARM64, you can use [colima](https://github.com/abiosoft/colima) to manage your Docker environment. You can start it with:
+The development setup includes pre-configured users and realms. Ensure you have Docker/Podman Compose installed with enough resources.
 
 ```bash
-colima start --arch aarch64 --vm-type=vz --mount-type=virtiofs --vz-rosetta --cpu 4 --memory 10
-```
-
-```bash
-docker compose up --build
+podman compose up --build
 ```
 
 - Keycloak: `http://localhost:8080`
 - Admin credentials: `admin` / `admin`
-- Realm: `gdi` (automatically imported)
+
+The PostgreSQL database is initialized from `database/keycloak.sql` the first time the service is created. If you want to capture the current Keycloak database state into that file, use the running database container and dump it to the repository path:
+
+```bash
+mkdir -p database
+podman exec keycloak-postgres env PGPASSWORD=keycloak pg_dump -U keycloak -d keycloak > database/keycloak.sql
+```
 
 If you ever need to delete the Keycloak data, you can use the following command:
 
 ```bash
-docker compose down -v
-```
-
-If you ever need to make changes to the realm or users, the safest way is changing directly in the Keycloak admin console and export the realm via CLI. Then, commit the changes to the repository.
-
-```bash
-docker compose exec keycloak /opt/keycloak/bin/kc.sh export --realm gdi --dir /opt/keycloak/data/import --users realm_file --optimized
+podman compose down -v
 ```
 
 If you ever need to format the files, you can use the following command:
@@ -119,7 +113,7 @@ mvn formatter:format
 To build the production-ready Docker image:
 
 ```bash
-docker build -t keycloak-ga4gh-visa-issuer .
+podman build -t keycloak-ga4gh-visa-issuer .
 ```
 
 The production image is optimized and does not include development tools or credentials. You must provide your own configuration (DB, admin user, etc.) at runtime.

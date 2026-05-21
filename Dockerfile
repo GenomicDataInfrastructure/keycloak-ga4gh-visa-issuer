@@ -9,7 +9,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests -Dformatter.skip
 
 # Runtime stage
-FROM quay.io/keycloak/keycloak:26.5.2
+FROM quay.io/keycloak/keycloak:26.5.7
 COPY --from=build /app/target/keycloak-ga4gh-visa-issuer-*.jar /opt/keycloak/providers/
 RUN /opt/keycloak/bin/kc.sh build
 
