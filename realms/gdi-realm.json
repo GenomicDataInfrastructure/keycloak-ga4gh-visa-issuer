@@ -67,9 +67,7 @@
       },
       "clientRole" : false,
       "containerId" : "6f348afb-6f1f-428c-a4f9-5f8e2374a075",
-      "attributes" : {
-        "gdi" : [ "1710000000" ]
-      }
+      "attributes" : { }
     }, {
       "id" : "20d863dd-6c6a-4357-bea7-50ca195e9032",
       "name" : "offline_access",

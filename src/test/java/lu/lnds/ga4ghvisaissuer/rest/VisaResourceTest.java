@@ -61,9 +61,9 @@ class VisaResourceTest {
     @Mock
     private RoleModel role;
     @Mock
-    private RoleModel userRoleWithGdi;
+    private RoleModel researcherRole;
     @Mock
-    private RoleModel userRoleWithoutGdi;
+    private RoleModel nonResearcherRole;
 
     private VisaResource visaResource;
 
@@ -92,11 +92,10 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
         when(user.getUsername()).thenReturn("researcher");
-        when(user.getRoleMappingsStream()).thenReturn(Stream.of(userRoleWithGdi,
-                userRoleWithoutGdi));
-        when(userRoleWithGdi.getName()).thenReturn("gdi_researcher");
-        when(userRoleWithGdi.getAttributes()).thenReturn(Map.of("gdi", List.of("1710000000")));
-        when(userRoleWithoutGdi.getAttributes()).thenReturn(Map.of());
+        when(user.getRoleMappingsStream()).thenReturn(Stream.of(nonResearcherRole,
+                researcherRole));
+        when(nonResearcherRole.getName()).thenReturn("USER");
+        when(researcherRole.getName()).thenReturn("RESEARCHER");
         when(user.getFirstAttribute("accepted_terms_and_conditions")).thenReturn("accepted");
         when(user.getFirstAttribute("accepted_terms_and_conditions_timestamp")).thenReturn(
                 "1720000000");
@@ -152,9 +151,9 @@ class VisaResourceTest {
                 .filter(claim -> "ResearcherStatus".equals(claim.get("type")))
                 .findFirst()
                 .orElseThrow();
-        assertEquals("gdi_researcher", roleVisa.get("value"));
+        assertEquals("RESEARCHER", roleVisa.get("value"));
         assertEquals("so", roleVisa.get("by"));
-        assertEquals(1710000000L, ((Number) roleVisa.get("asserted")).longValue());
+        assertTrue(((Number) roleVisa.get("asserted")).longValue() > 0);
 
         Map<String, Object> acceptedTermsVisa = ga4ghVisaClaims.stream()
                 .filter(claim -> "AcceptedTermsAndPolicies".equals(claim.get("type")))
@@ -215,9 +214,8 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
         when(user.getUsername()).thenReturn("researcher");
-        when(user.getRoleMappingsStream()).thenReturn(Stream.of(userRoleWithGdi));
-        when(userRoleWithGdi.getName()).thenReturn("gdi_researcher");
-        when(userRoleWithGdi.getAttributes()).thenReturn(Map.of("gdi", List.of("1710000000")));
+        when(user.getRoleMappingsStream()).thenReturn(Stream.of(researcherRole));
+        when(researcherRole.getName()).thenReturn("RESEARCHER");
         when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256))
                 .thenThrow(new RuntimeException("Signing failed"));
 
@@ -243,9 +241,8 @@ class VisaResourceTest {
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
         when(user.getUsername()).thenReturn("researcher");
-        when(user.getRoleMappingsStream()).thenReturn(Stream.of(userRoleWithGdi));
-        when(userRoleWithGdi.getName()).thenReturn("gdi_researcher");
-        when(userRoleWithGdi.getAttributes()).thenReturn(Map.of("gdi", List.of("1710000000")));
+        when(user.getRoleMappingsStream()).thenReturn(Stream.of(researcherRole));
+        when(researcherRole.getName()).thenReturn("RESEARCHER");
 
         // Mock active key returning null
         when(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256)).thenReturn(null);
@@ -274,8 +271,8 @@ class VisaResourceTest {
         String elixirId = "elixir-user";
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
-        when(user.getRoleMappingsStream()).thenReturn(Stream.of(userRoleWithoutGdi));
-        when(userRoleWithoutGdi.getAttributes()).thenReturn(Map.of());
+        when(user.getRoleMappingsStream()).thenReturn(Stream.of(nonResearcherRole));
+        when(nonResearcherRole.getName()).thenReturn("USER");
         when(user.getFirstAttribute("accepted_terms_and_conditions")).thenReturn("accepted");
         when(user.getFirstAttribute("accepted_terms_and_conditions_timestamp")).thenReturn(
                 "not-a-timestamp");

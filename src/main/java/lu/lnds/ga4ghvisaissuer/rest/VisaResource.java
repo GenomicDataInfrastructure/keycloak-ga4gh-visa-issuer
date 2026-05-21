@@ -36,13 +36,12 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 @Log
 public class VisaResource {
 
     private static final String REQUIRED_ROLE = "ga4gh-visa-issuer";
-    private static final String GDI_ATTRIBUTE = "gdi";
+    private static final String RESEARCHER_ROLE = "RESEARCHER";
     private static final String ACCEPTED_TERMS_ATTRIBUTE = "accepted_terms_and_conditions";
     private static final String ACCEPTED_TERMS_TIMESTAMP_ATTRIBUTE = "accepted_terms_and_conditions_timestamp";
 
@@ -83,24 +82,16 @@ public class VisaResource {
         List<String> passports = new ArrayList<>();
 
         try {
-            List<RoleModel> userRoles = user.getRoleMappingsStream().collect(Collectors.toList());
-            for (RoleModel role : userRoles) {
-                List<String> gdiAttributeValues = role.getAttributes().get(GDI_ATTRIBUTE);
-                if (gdiAttributeValues == null || gdiAttributeValues.isEmpty()) {
-                    continue;
-                }
-
-                OptionalLong roleAsserted = parseEpochSecond(gdiAttributeValues.get(0));
-                if (roleAsserted.isEmpty()) {
-                    continue;
-                }
-
+            boolean hasResearcherRole = user.getRoleMappingsStream()
+                    .map(RoleModel::getName)
+                    .anyMatch(roleName -> RESEARCHER_ROLE.equalsIgnoreCase(roleName));
+            if (hasResearcherRole) {
                 passports.add(signedVisaAsString(
                         user.getUsername(),
                         "ResearcherStatus",
-                        role.getName(),
+                        RESEARCHER_ROLE,
                         "so",
-                        roleAsserted.getAsLong()));
+                        Instant.now().getEpochSecond()));
             }
 
             String acceptedTerms = user.getFirstAttribute(ACCEPTED_TERMS_ATTRIBUTE);
