@@ -20,7 +20,7 @@
         <keycloak.version>26.5.7</keycloak.version>
         <lombok.version>1.18.46</lombok.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
-        <sonar-maven-plugin.version>5.5.0.6356</sonar-maven-plugin.version>
+        <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
     </properties>
 
     <dependencies>
