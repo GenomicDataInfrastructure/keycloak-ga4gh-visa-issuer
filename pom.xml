@@ -19,8 +19,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <keycloak.version>26.5.7</keycloak.version>
         <lombok.version>1.18.48</lombok.version>
+        <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-        <sonar-maven-plugin.version>5.5.0.6356</sonar-maven-plugin.version>
     </properties>
 
     <dependencies>
@@ -113,7 +113,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>1.19.8</version>
+            <version>1.21.4</version>
             <scope>test</scope>
         </dependency>
 
