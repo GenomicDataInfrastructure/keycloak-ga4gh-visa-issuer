@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [v1.0.5] - 2026-10-24
+
+### Changed
+- doc: update CHANGELOG.md for v1.0.4 by @LNDS-Sysadmins in 7aa6501
+
+
+### Fixed
+- fix(security): ship brotli4j 1.24.0 instead of deleting it, so start-dev works by @Bruno Pacheco in 0aca717
+
+
 ## [v1.0.4] - 2026-10-24
 
 ### Changed
