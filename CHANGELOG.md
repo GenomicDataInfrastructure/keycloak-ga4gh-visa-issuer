@@ -12,6 +12,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [v1.0.4] - 2026-10-24
+
+### Changed
+- chore(deps): update postgres docker tag to v18 by @Renovate Bot in 2e09d23
+- chore(deps): update oras-project/setup-oras action to v2 by @Renovate Bot in 241bff4
+- chore(deps): update docker/metadata-action action to v6 by @Renovate Bot in 5a22b1b
+- chore(deps): update docker/login-action action to v4 by @Renovate Bot in cd6c545
+- chore(deps): update docker/build-push-action action to v7 by @Renovate Bot in 431b433
+- chore(deps): update dependency org.junit.jupiter:junit-jupiter to v6 by @Renovate Bot in 3421ebd
+- chore(deps): update maven docker tag to v3.10.0 by @Renovate Bot in ac6ba65
+- chore(deps): update dependency org.projectlombok:lombok to v1.18.48 by @Renovate Bot in 427f8f0
+- chore(deps): update dependency org.sonarsource.scanner.maven:sonar-maven-plugin to v5.8.0.7211 by @Renovate Bot in b9b1822
+- chore(deps): update dependency org.jboss.resteasy:resteasy-jackson2-provider to v7 by @Renovate Bot in 659cc82
+- chore(deps): update dependency org.jboss.resteasy:resteasy-core to v7 by @Renovate Bot in 38ec5d0
+- chore(deps): update dependency io.rest-assured:rest-assured to v6 by @Renovate Bot in 603a087
+- chore(deps): update actions/checkout action to v7 by @Renovate Bot in 83bd058
+- chore(deps): update actions/cache action to v6 by @Renovate Bot in cd5ed93
+- chore(deps): update quay.io/keycloak/keycloak docker tag to v26.8.0 by @Renovate Bot in adfe660
+- chore(deps): update actions/setup-java action to v6 by @Renovate Bot in ed0b10b
+- chore(deps): update mockito monorepo to v5.24.0 by @Renovate Bot in 58c91c2
+- chore(deps): update docker/login-action action to v3.7.0 by @Renovate Bot in a34d6bf
+- chore(deps): update docker/build-push-action action to v6.19.2 by @Renovate Bot in c5bf565
+- chore(deps): update dependency org.testcontainers:junit-jupiter to v1.21.4 by @Renovate Bot in 9f83302
+- chore(deps): update dependency org.sonarsource.scanner.maven:sonar-maven-plugin to v5.8.0.7211 by @Renovate Bot in 35dd1d1
+- chore(deps): update actions/setup-java action to v5.7.0 by @Renovate Bot in c615d20
+- chore(deps): update actions/checkout action to v6.1.0 by @Renovate Bot in 64c92d2
+- chore(deps): update dependency org.projectlombok:lombok to v1.18.48 by @Renovate Bot in 7da38f6
+- chore(deps): update dependency org.jboss.resteasy:resteasy-jackson2-provider to v6.2.19.final by @Renovate Bot in 58aebd3
+- chore(deps): update dependency org.jboss.resteasy:resteasy-core to v6.2.19.final by @Renovate Bot in 66b6632
+- chore(deps): update dependency org.jacoco:jacoco-maven-plugin to v0.8.15 by @Renovate Bot in 433c007
+- chore(deps): update actions/checkout action to v6.0.3 by @Renovate Bot in 20be146
+- chore(deps): update dependency com.auth0:java-jwt to v4.6.1 by @Renovate Bot in bdc1545
+- chore(deps): update dependency org.apache.maven.plugins:maven-surefire-plugin to v3.6.0 by @Renovate Bot in b51e429
+- chore(deps): update dependency org.apache.maven.plugins:maven-failsafe-plugin to v3.6.0 by @Renovate Bot in 204d00b
+- chore(deps): update dependency org.apache.maven.plugins:maven-compiler-plugin to v3.16.0 by @Renovate Bot in 2c4114e
+- chore(deps): update dependency org.junit.jupiter:junit-jupiter to v5.14.4 by @Renovate Bot in e74897a
+- chore(deps): update dependency io.rest-assured:rest-assured to v5.5.7 by @Renovate Bot in d5d2c88
+- chore(deps): update aquasecurity/trivy-action action to v0.36.0 by @Renovate Bot in 91d81a2
+- doc: update CHANGELOG.md for v1.0.3 by @LNDS-Sysadmins in f49e6b4
+
+
+### Fixed
+- fix(security): make the trust store guard fail when keytool fails by @Bruno Pacheco in 782db97
+- fix(security): remove brotli4j from the Keycloak image (CVE-2026-111497) by @Bruno Pacheco in 584442f
+- fix(deps): update Keycloak to 26.8.1, guard trust store, attach image SBOM by @Bruno Pacheco in bb0ba91
+- fix(deps): update keycloak.version to v26.8.0 by @Renovate Bot in 4e7ebd8
+- fix(deps): update dependency com.fasterxml.jackson.core:jackson-databind to v2.22.3 by @Renovate Bot in 444c6b0
+- fix(deps): update keycloak.version to v26.7.4 by @Renovate Bot in e89035e
+- fix(deps): update dependency com.fasterxml.jackson.core:jackson-core to v2.22.3 by @Renovate Bot in 96d6a4a
+- fix(deps): update dependency com.fasterxml.jackson.core:jackson-annotations to v2.22 by @Renovate Bot in dbc08fc
+- fix(deps): update dependency com.fasterxml.jackson.core:jackson-databind to v2.19.4 by @Renovate Bot in 2b7518f
+- fix(deps): update dependency com.fasterxml.jackson.core:jackson-core to v2.19.4 by @Renovate Bot in eeb771b
+- fix(deps): update dependency com.fasterxml.jackson.core:jackson-annotations to v2.19.4 by @Renovate Bot in 4fbda79
+
+
 ## [v1.0.3] - 2026-05-21
 
 ### Added
