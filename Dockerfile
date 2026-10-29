@@ -12,7 +12,7 @@ RUN mvn clean package -DskipTests -Dformatter.skip
 # deleting the jars breaks every later re-augmentation (start-dev, kc.sh build with other options),
 # so put 1.24.0 under the file names recorded in lib/quarkus/quarkus-application.dat.
 # Remove this stage and the three COPY lines below once Keycloak ships brotli4j >= 1.24.0.
-FROM registry.access.redhat.com/ubi9-minimal:1792742129 AS brotli4j
+FROM registry.access.redhat.com/ubi9-minimal:1793253230 AS brotli4j
 RUN cd /tmp && B=https://repo1.maven.org/maven2/com/aayushatharva/brotli4j \
  && curl -fsSLO $B/brotli4j/1.24.0/brotli4j-1.24.0.jar \
  && curl -fsSLO $B/service/1.24.0/service-1.24.0.jar \
