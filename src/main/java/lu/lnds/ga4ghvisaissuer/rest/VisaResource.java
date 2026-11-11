@@ -25,6 +25,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
 import lombok.extern.java.Log;
 
 import java.time.Instant;
@@ -125,10 +126,11 @@ public class VisaResource {
         JsonWebToken visa = new JsonWebToken();
         visa.id(UUID.randomUUID().toString());
 
-        // Construct Issuer URL manually as getRealmUrl() might be missing in
-        // KeycloakUriInfo
-        String issuer = session.getContext().getUri().getBaseUri().toString() + "/realms/"
-                + session.getContext().getRealm().getName();
+        // Join paths to preserve the configured base path with or without a trailing slash.
+        var realmUri = UriBuilder.fromUri(session.getContext().getUri().getBaseUri())
+                .path("realms")
+                .segment(session.getContext().getRealm().getName());
+        String issuer = realmUri.build().toString();
         visa.issuer(issuer);
 
         visa.subject(username);
@@ -161,7 +163,8 @@ public class VisaResource {
         JWSHeader header = new JWSHeader(Enum.valueOf(org.keycloak.jose.jws.Algorithm.class,
                 signer.getAlgorithm()), "JWT", null);
         header.setKeyId(signer.getKid());
-        header.setOtherClaims("jku", issuer + "/protocol/openid-connect/certs");
+        header.setOtherClaims("jku", realmUri.clone().path("protocol/openid-connect/certs")
+                .build().toString());
 
         try {
             String headerB64 = java.util.Base64.getUrlEncoder().withoutPadding()

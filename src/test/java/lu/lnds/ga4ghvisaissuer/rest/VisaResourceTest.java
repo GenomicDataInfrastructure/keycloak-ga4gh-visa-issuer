@@ -8,6 +8,8 @@ import lu.lnds.ga4ghvisaissuer.dto.GetPermissionsResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
@@ -84,8 +86,17 @@ class VisaResourceTest {
         lenient().when(user.getFirstAttribute("terms_and_conditions")).thenReturn(null);
     }
 
-    @Test
-    void testGetUserPermissions_UserFound_WithAttributes() throws Exception {
+    @ParameterizedTest
+    @CsvSource({
+            "https://id.portal.gdi.lu, https://id.portal.gdi.lu/realms/gdi",
+            "https://id.portal.gdi.lu/, https://id.portal.gdi.lu/realms/gdi",
+            "https://id.portal.gdi.lu/auth, https://id.portal.gdi.lu/auth/realms/gdi",
+            "https://id.portal.gdi.lu/auth/, https://id.portal.gdi.lu/auth/realms/gdi"
+    })
+    void testGetUserPermissions_UserFound_WithAttributes(String baseUri,
+            String expectedIssuer) throws Exception {
+        when(uriInfo.getBaseUri()).thenReturn(URI.create(baseUri));
+        when(realm.getName()).thenReturn("gdi");
         String elixirId = "elixir-user";
         when(userProvider.searchForUserByUserAttributeStream(realm, "elixir_id", elixirId))
                 .thenReturn(Stream.of(user));
@@ -132,11 +143,14 @@ class VisaResourceTest {
         String visaString = permissions.getGa4ghPassportV1().get(0);
         assertTrue(visaString.split("\\.").length == 3);
 
-        // Verify jku header
-        DecodedJWT visa = JWT.decode(visaString);
-        String jku = visa.getHeaderClaim("jku").asString();
-        assertNotNull(jku, "jku header should be present");
-        assertTrue(jku.endsWith("/realms/master/protocol/openid-connect/certs"));
+        // Verify complete URLs in every issued visa, including the signing keys header.
+        for (String signedVisa : permissions.getGa4ghPassportV1()) {
+            DecodedJWT visa = JWT.decode(signedVisa);
+            assertEquals(expectedIssuer, visa.getIssuer());
+            assertEquals(expectedIssuer, visa.getClaim("ga4gh_visa_v1").asMap().get("source"));
+            assertEquals(expectedIssuer + "/protocol/openid-connect/certs",
+                    visa.getHeaderClaim("jku").asString());
+        }
 
         List<Map<String, Object>> ga4ghVisaClaims = permissions.getGa4ghPassportV1().stream()
                 .map(JWT::decode)
