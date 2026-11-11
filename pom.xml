@@ -19,7 +19,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <keycloak.version>26.8.1</keycloak.version>
         <lombok.version>1.18.48</lombok.version>
-        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
         <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
     </properties>
 
