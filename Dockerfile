@@ -23,7 +23,7 @@ RUN cd /tmp && B=https://repo1.maven.org/maven2/com/aayushatharva/brotli4j \
   '49e5c5bcefb2d4247d3a2859d15ae90086b4c4089e08f2a560b8ac011e61ab06  native-linux-x86_64-1.24.0.jar' | sha256sum -c -
 
 # Runtime stage
-FROM quay.io/keycloak/keycloak:26.8.1
+FROM quay.io/keycloak/keycloak:26.8.2
 # Fail the build if the base image trusts a root distrusted by RHSB-2026-012 (CVE-2026-91403)
 # (keytool output goes to a file first: /bin/sh has no pipefail, so a failing keytool would pass a pipe)
 RUN keytool -list -v -cacerts -storepass changeit > /tmp/cacerts.txt \
