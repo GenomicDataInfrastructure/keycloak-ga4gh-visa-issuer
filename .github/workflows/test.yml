@@ -6,6 +6,10 @@ name: Run Tests
 
 on: push
 
+# ART-31067 / CVE-2026-114938: protect the Maven/test JVM.
+env:
+  JAVA_TOOL_OPTIONS: "-XX:-UseBASE64Intrinsics"
+
 jobs:
   test:
     runs-on: ubuntu-latest

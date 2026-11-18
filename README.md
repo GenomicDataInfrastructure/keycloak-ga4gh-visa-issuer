@@ -124,3 +124,18 @@ This work is licensed under multiple licences:
 - All original source code is licensed under [Apache-2.0](./LICENSES/Apache-2.0.txt).
 - All documentation and images are licensed under [CC-BY-4.0](./LICENSES/CC-BY-4.0.txt).
 - For more accurate information, check the individual files.
+
+## Java4Shell mitigation (ART-31067)
+
+The image disables HotSpot Base64 intrinsics via `JAVA_TOOL_OPTIONS=-XX:-UseBASE64Intrinsics`
+in both the Maven build stage and the Keycloak runtime. The runtime build fails if Java
+does not report the intrinsic as disabled. This also applies to `start-dev`.
+
+This is the vendor-recommended temporary mitigation for CVE-2026-114938, not a patched
+JDK release. Keep it until the bundled runtime has a vendor-confirmed fix and startup
+checks and application smoke tests pass. If overriding `JAVA_TOOL_OPTIONS`, retain
+`-XX:-UseBASE64Intrinsics` alongside any existing options.
+
+Verify the guest CPU flags and running Java versions on Deep, ELIXIR-LU OpenStack,
+and GCore. Lack of AVX-512 VBMI prevents this known code path but does not replace
+runtime updates. See the [Red Hat advisory](https://access.redhat.com/security/vulnerabilities/RHSB-2026-018).
